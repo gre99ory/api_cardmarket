@@ -17,6 +17,7 @@
 
     register_activation_hook( __FILE__, 'mkm_api_create_table' );
     add_action( 'admin_menu', 'mkm_api_admin_menu' );
+    add_action( 'admin_init', 'mkm_api_admin_settings' );
 
     function mkm_api_create_table() {
         global $wpdb;
@@ -36,13 +37,38 @@
         add_submenu_page( 'mkm-api-options', 'MKM API DATA', 'API data', 'manage_options', 'mkm-api-subpage', 'mkm_api_data' );
     }
 
+    function mkm_api_admin_settings() {
+        //option_group, option_name, sanitize_callback
+        register_setting( 'mkm_api_group_options', 'mkm_api_options', 'mkm_api_sanitize' );
+
+        add_settings_section( 'mkm_api_options_section_id', '', '', 'mkm-api-options' );
+
+        add_settings_field( 'mkm_api_setting_key_id', __( 'Key', 'mkm-api' ), 'mkm_api_setting_key_cd', 'mkm-api-options', 'mkm_api_options_section_id', array( 'label_for' => 'mkm_api_setting_key_id' ) );
+    }
+
+    function mkm_api_sanitize() {
+
+    }
+
+    function mkm_api_setting_key_cd() {
+        $options = get_option( 'mkm_api_options' );
+
+        ?>
+        <p>
+            <input type="text" value="" class="regular-text" name="mkm_api_options" id="mkm_api_setting_key_id" >
+        </p>
+
+        <?php
+    }
+
     function mkm_api_options( ) {
         ?>
 
             <div class="wrap">
-                <h2><?php _e( 'MKM API Setings', 'mkm-api' ); ?></h2>
+                <h2><?php _e( 'MKM API Settings', 'mkm-api' ); ?></h2>
                 <form action="options.php" method="post">
-                
+                <?php settings_fields( 'mkm_api_group_options' ); ?>
+                <?php do_settings_sections( 'mkm-api-options' ); ?>
                 <?php submit_button( __( 'Add API', 'mkm-api' ) ); ?>
                 </form>
             </div>
