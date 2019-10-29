@@ -18,6 +18,13 @@
     register_activation_hook( __FILE__, 'mkm_api_create_table' );
     add_action( 'admin_menu', 'mkm_api_admin_menu' );
     add_action( 'admin_init', 'mkm_api_admin_settings' );
+    add_action( 'wp_ajax_mkm_api_delete_key', 'mkm_api_ajax_delete_key' );
+    add_action( 'admin_enqueue_scripts', 'mkm_api_enqueue_admin' );
+
+    function mkm_api_enqueue_admin() {
+        wp_enqueue_script( 'mkm-api-admin', plugins_url( 'js/admin_scripts.js', __FILE__ ) );
+        wp_enqueue_style( 'mkm-api-admin', plugins_url( 'css/admin_style.css', __FILE__ ) );
+    }
 
     function mkm_api_create_table() {
         global $wpdb;
@@ -31,6 +38,28 @@
         $wpdb->query($query);
     }
 
+    function mkm_api_ajax_delete_key() {
+        $post    = $_POST;
+
+        $flag    = 0;
+        $options = get_option( 'mkm_api_options' );
+
+        if ( is_array ( $options ) && count( $options ) > 0 ) {
+            $arr = array();
+            foreach( $options as $item ) {
+                if ( $item['key'] == $post['data'] ) continue;
+                $arr[] = $item;
+            }
+        }
+
+        $up = update_option( 'mkm_api_options', $arr );
+
+        if ( $up ) $flag = 1;
+
+        echo $flag;
+        die;
+    }
+
     function mkm_api_admin_menu() {
         add_menu_page( 'MKM API', 'MKM API', 'manage_options', 'mkm-api-options', 'mkm_api_options', 'dashicons-groups' );
 
@@ -38,12 +67,14 @@
     }
 
     function mkm_api_admin_settings() {
-        //option_group, option_name, sanitize_callback
+
         register_setting( 'mkm_api_group_options', 'mkm_api_options', 'mkm_api_sanitize' );
 
     }
 
     function mkm_api_sanitize( $option ) {
+
+        if (isset($_POST['data'])) return $option;
 
         $add_array             = array();
         $select                = array( 'min', 'hours', 'days' );
@@ -64,7 +95,6 @@
         return $arr;
     }
 
-
     function mkm_api_options( ) {
         $option = get_option( 'mkm_api_options' );
         $time   = array( 'min' => __( 'minutes', 'mkm-api' ), 'hours' => __( 'hours', 'mkm-api' ), 'days' => __( 'days', 'mkm-api' ) );
@@ -82,10 +112,10 @@
                                 <table>
                                     <?php foreach( $option as $item ){ ?>
                                     <?php $interval = $item['interval'] . ' ' . $time[$item['time']]; ?>
-                                        <tr>
-                                            <td style="width: 50%;"><span style="font-style: italic;"><?php echo $item['key']; ?></span></td>
-                                            <td><span>(<?php _e( 'Interval', 'mkm-api' ); ?> : <?php echo $interval; ?>)</span></td>
-                                            <td style="width: 10%;"><a href="" style="color: red;"><?php _e( 'Delete', 'mkm-api' ); ?></a></td>
+                                        <tr class="mkm-api-key-row">
+                                            <td><?php echo $item['key']; ?></td>
+                                            <td>(<?php _e( 'Interval', 'mkm-api' ); ?> : <?php echo $interval; ?>)</td>
+                                            <td class="mkm-api-delete-key"><a href="" data-key="<?php echo $item['key']; ?>"><?php _e( 'Delete', 'mkm-api' ); ?></a></td>
                                         </tr>
                                     <?php } ?>
                                 </table>
@@ -110,6 +140,7 @@
 
                 <?php submit_button( __( 'Add API', 'mkm-api' ) ); ?>
                 </form>
+                <div id="res"></div>
             </div>
         <?php
     }

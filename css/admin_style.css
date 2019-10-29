@@ -1,0 +1,12 @@
+.mkm-api-key-row td:first-child {
+    width: 50%;
+    font-style: italic;
+}
+
+.mkm-api-delete-key {
+    width: 10%;
+}
+
+.mkm-api-delete-key a {
+    color: red;
+}
