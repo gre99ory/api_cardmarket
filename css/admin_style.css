@@ -10,3 +10,12 @@
 .mkm-api-delete-key a {
     color: red;
 }
+
+.mkm-api-app-form-label {
+    width: 160px;
+    display: inline-block;
+}
+
+.mkm-api-apps-show tr {
+    background: #fff;
+}
