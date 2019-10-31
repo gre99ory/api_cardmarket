@@ -19,3 +19,19 @@
 .mkm-api-apps-show tr {
     background: #fff;
 }
+
+.mkm-api-list-orders {
+    background: #ccc;
+}
+
+.mkm-api-list-order-row:nth-child(odd) {
+    background: #fff;
+}
+
+.mkm-api-list-order-row:nth-child(even) {
+    background: #f3f2f2;
+}
+
+.mkm-api-orders-table {
+    border: 1px solid #ccc;
+}

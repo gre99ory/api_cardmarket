@@ -55,6 +55,7 @@
             `packaging` VARCHAR(255) NOT NULL,
             `article_value` VARCHAR(255) NOT NULL,
             `total_value` VARCHAR(255) NOT NULL,
+            `appname` VARCHAR(50) NOT NULL,
             PRIMARY KEY (`id`)) ENGINE = InnoDBDEFAULT CHARSET=utf8;";
 
         $wpdb->query($query);
@@ -85,7 +86,7 @@
     function mkm_api_admin_menu() {
         add_menu_page( 'MKM API', 'MKM API', 'manage_options', 'mkm-api-options', 'mkm_api_options', 'dashicons-groups' );
 
-        add_submenu_page( 'mkm-api-options', 'MKM API DATA', 'API data', 'manage_options', 'mkm-api-subpage', 'mkm_api_data' );
+        add_submenu_page( 'mkm-api-options', 'MKM API DATA', 'API Orders', 'manage_options', 'mkm-api-subpage', 'mkm_api_orders' );
     }
 
     function mkm_api_admin_settings() {
@@ -224,9 +225,10 @@
                 $packaging       = esc_sql( $value->evaluation->packaging );
                 $articleValue    = esc_sql( $value->articleValue );
                 $totalValue      = esc_sql( $value->totalValue );
+                $appName         = esc_sql($option[0]['name'] );
 
                 if (!$wpdb->get_var( "SELECT id_order FROM mkm_api_orders WHERE id_order = $idOrder" ) ){
-                    $wpdb->query($wpdb->prepare("INSERT INTO mkm_api_orders (id_order, states, date_bought, date_paid, date_sent, date_received, price, is_insured, city, country, article_count, evaluation_grade, item_description, packaging, article_value, total_value ) VALUES ( %d, %s, %s, %s, %s, %s, %f, %d, %s, %s, %d, %s, %s, %s, %f, %f )", $idOrder, $state, $dateBought, $datePaid, $dateSent, $dateReceived, $price, $isInsured, $city, $country, $articleCount, $evaluationGrade, $itemDescription, $packaging, $articleValue, $totalValue ) );
+                    $wpdb->query($wpdb->prepare("INSERT INTO mkm_api_orders (id_order, states, date_bought, date_paid, date_sent, date_received, price, is_insured, city, country, article_count, evaluation_grade, item_description, packaging, article_value, total_value, appname ) VALUES ( %d, %s, %s, %s, %s, %s, %f, %d, %s, %s, %d, %s, %s, %s, %f, %f, %s )", $idOrder, $state, $dateBought, $datePaid, $dateSent, $dateReceived, $price, $isInsured, $city, $country, $articleCount, $evaluationGrade, $itemDescription, $packaging, $articleValue, $totalValue, $appName ) );
                 }
             }
 
@@ -377,4 +379,47 @@
         $decoded            = simplexml_load_string($content);
 
         return $decoded;
+    }
+
+    function mkm_api_get_orders() {
+        global $wpdb;
+        $query = "SELECT * FROM mkm_api_orders";
+        return $wpdb->get_results($query);
+    }
+
+    function mkm_api_orders() {
+
+        $data = mkm_api_get_orders();
+
+        ?>
+            <div class="wrap">
+                <h2><?php _e( 'MKM API Orders', 'mkm-api' ); ?></h2>
+            </div>
+            <table class="form-table mkm-api-orders-table">
+                <tr class="mkm-api-list-orders">
+                    <td><?php _e( 'ID Order', 'mkm-api' ); ?></td>
+                    <td><?php _e( 'State', 'mkm-api' ); ?></td>
+                    <td><?php _e( 'Date bought', 'mkm-api' ); ?></td>
+                    <td><?php _e( 'Price', 'mkm-api' ); ?></td>
+                    <td><?php _e( 'City/Country', 'mkm-api' ); ?></td>
+                    <td><?php _e( 'Article count', 'mkm-api' ); ?></td>
+                    <td><?php _e( 'Article value', 'mkm-api' ); ?></td>
+                    <td><?php _e( 'Total value', 'mkm-api' ); ?></td>
+                    <td><?php _e( 'App name', 'mkm-api' ); ?></td>
+                </tr>
+                <?php foreach ( $data as $value ) { ?>
+                    <tr class="mkm-api-list-order-row">
+                    <td><?php echo $value->id_order; ?></td>
+                    <td><?php echo $value->states; ?></td>
+                    <td><?php echo $value->date_bought; ?></td>
+                    <td><?php echo number_format( $value->price, 2, '.', '' ); ?></td>
+                    <td><?php echo $value->city . ' ' . $value->country;  ?></td>
+                    <td><?php echo $value->article_count; ?></td>
+                    <td><?php echo number_format( $value->article_count, 2, '.', '' ); ?></td>
+                    <td><?php echo number_format( $value->total_value, 2, '.', '' ); ?></td>
+                    <td><?php echo $value->appname; ?></td>
+                </tr>
+                <?php } ?>
+            </table>
+        <?php
     }
