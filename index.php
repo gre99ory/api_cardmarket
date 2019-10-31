@@ -19,6 +19,7 @@
     add_action( 'admin_menu', 'mkm_api_admin_menu' );
     add_action( 'admin_init', 'mkm_api_admin_settings' );
     add_action( 'wp_ajax_mkm_api_delete_key', 'mkm_api_ajax_delete_key' );
+    add_action( 'wp_ajax_mkm_api_ajax_data', 'mkm_api_ajax_get_data' );
     add_action( 'admin_enqueue_scripts', 'mkm_api_enqueue_admin' );
 
     if ( !function_exists( 'dump' ) ) {
@@ -41,10 +42,10 @@
             `id` INT(11) unsigned NOT NULL AUTO_INCREMENT,
             `id_order` INT(10) NOT NULL,
             `states` VARCHAR(50) NOT NULL,
-            `date_bought` VARCHAR(50) NOT NULL,
-            `date_paid` VARCHAR(50) NOT NULL,
-            `date_sent` VARCHAR(50) NOT NULL,
-            `date_received` VARCHAR(50) NOT NULL,
+            `date_bought` INT(11) NOT NULL,
+            `date_paid` INT(11) NOT NULL,
+            `date_sent` INT(11) NOT NULL,
+            `date_received` INT(11) NOT NULL,
             `price` VARCHAR(50) NOT NULL,
             `is_insured` BOOLEAN NOT NULL,
             `city` VARCHAR(255) NOT NULL,
@@ -80,6 +81,31 @@
         if ( $up ) $flag = 1;
 
         echo $flag;
+        die;
+    }
+
+    function mkm_api_ajax_get_data() {
+        $post    = $_POST;
+        $arr     = array();
+
+        $option = get_option( 'mkm_api_options' );
+
+        if( $post['count'] == 1 ) {
+            $count = mkm_api_auth( "https://api.cardmarket.com/ws/v2.0/account", $option[0]['app_token'], $option[0]['app_secret'], $option[0]['access_token'], $option[0]['token_secret']);
+            $arr['count'] = esc_sql( $count->account->sellCount );
+        } else {
+            $arr['count'] = $post['count'];
+        }
+        
+        $data = mkm_api_auth( "https://api.cardmarket.com/ws/v2.0/orders/1/8/" . $post['data'], $option[0]['app_token'], $option[0]['app_secret'], $option[0]['access_token'], $option[0]['token_secret'] );
+
+        if ( $data ) {
+            //mkm_api_add_data_from_db( $data );
+            $arr['data'] = $post['data'] + 100;
+            echo json_encode( $arr );
+        } else {
+            echo 'end';
+        }
         die;
     }
 
@@ -189,48 +215,63 @@
                         </tr>
                     </table>
 
-                <?php submit_button( __( 'Add API', 'mkm-api' ) ); ?>
+                <?php submit_button( __( 'Add API', 'mkm-api' ), 'primary', 'submit', true, array( 'id' => 'mkm-api-add-api') ); ?>
                 </form>
+                <a href="/?TB_inline&width=300&height=45&inlineId=content-for-modal" class="thickbox">----</a>
+                <div id="content-for-modal">
+                    <div class="mkm-api-progress-bar">
+                        <span class="mkm-api-progress" style="width: 30%"></span>
+                        <span class="proc">30%</span>
+                    </div>
+                </div>
+                <?php add_thickbox(); ?>
                 <?php mkm_api_data(); ?>
             </div>
         <?php
     }
 
+    function mkm_api_add_data_from_db( $data ) {
+        global $wpdb;
+
+        foreach ( $data->order as $value ) {
+            $idOrder         = esc_sql( (int)$value->idOrder );
+            $state           = esc_sql( $value->state->state );
+            $dateBought      = strtotime( esc_sql( $value->state->dateBought ) );
+            $datePaid        = strtotime( esc_sql( $value->state->datePaid ) );
+            $dateSent        = strtotime( esc_sql( $value->state->dateSent ) );
+            $dateReceived    = strtotime( esc_sql( $value->state->dateReceived ) );
+            $price           = esc_sql( $value->shippingMethod->price );
+            $isInsured       = (int)esc_sql( $value->shippingMethod->isInsured );
+            $city            = esc_sql( $value->shippingAddress->city );
+            $country         = esc_sql( $value->shippingAddress->country );
+            $articleCount    = (int)esc_sql( $value->articleCount );
+            $evaluationGrade = esc_sql( $value->evaluation->evaluationGrade );
+            $itemDescription = esc_sql( $value->evaluation->itemDescription );
+            $packaging       = esc_sql( $value->evaluation->packaging );
+            $articleValue    = esc_sql( $value->articleValue );
+            $totalValue      = esc_sql( $value->totalValue );
+            $appName         = esc_sql($option[0]['name'] );
+
+
+            if (!$wpdb->get_var( "SELECT id_order FROM mkm_api_orders WHERE id_order = $idOrder" ) ){
+                $wpdb->query($wpdb->prepare("INSERT INTO mkm_api_orders (id_order, states, date_bought, date_paid, date_sent, date_received, price, is_insured, city, country, article_count, evaluation_grade, item_description, packaging, article_value, total_value, appname ) VALUES ( %d, %s, %d, %d, %d, %d, %f, %d, %s, %s, %d, %s, %s, %s, %f, %f, %s )", $idOrder, $state, $dateBought, $datePaid, $dateSent, $dateReceived, $price, $isInsured, $city, $country, $articleCount, $evaluationGrade, $itemDescription, $packaging, $articleValue, $totalValue, $appName ) );
+            }
+        }
+    }
+
     function mkm_api_data() {
 
-        // $option = get_option( 'mkm_api_options' );
+        $option = get_option( 'mkm_api_options' );
+
         // if ( isset( $option ) && count( $option ) > 0 ) {
-        //     $data   = mkm_api_auth( "https://api.cardmarket.com/ws/v1.1/account", $option[0]['app_token'], $option[0]['app_secret'], $option[0]['access_token'], $option[0]['token_secret'] );
+        //     $data   = mkm_api_auth( "https://api.cardmarket.com/ws/v2.0/account", $option[0]['app_token'], $option[0]['app_secret'], $option[0]['access_token'], $option[0]['token_secret'] );
         //     dump($data);
+        // }
 
         global $wpdb;
         $option = get_option( 'mkm_api_options' );
         if ( isset( $option ) && count( $option ) > 0 ) {
-            $data   = mkm_api_auth( "https://api.cardmarket.com/ws/v2.0/orders/1/8/100", $option[0]['app_token'], $option[0]['app_secret'], $option[0]['access_token'], $option[0]['token_secret'] );
-
-            foreach ( $data->order as $value ) {
-                $idOrder         = esc_sql( (int)$value->idOrder );
-                $state           = esc_sql( $value->state->state );
-                $dateBought      = esc_sql( $value->state->dateBought);
-                $datePaid        = esc_sql( $value->state->datePaid );
-                $dateSent        = esc_sql( $value->state->dateSent );
-                $dateReceived    = esc_sql( $value->state->dateReceived );
-                $price           = esc_sql( $value->shippingMethod->price );
-                $isInsured       = (int)esc_sql( $value->shippingMethod->isInsured );
-                $city            = esc_sql( $value->shippingAddress->city );
-                $country         = esc_sql( $value->shippingAddress->country );
-                $articleCount    = (int)esc_sql( $value->articleCount );
-                $evaluationGrade = esc_sql( $value->evaluation->evaluationGrade );
-                $itemDescription = esc_sql( $value->evaluation->itemDescription );
-                $packaging       = esc_sql( $value->evaluation->packaging );
-                $articleValue    = esc_sql( $value->articleValue );
-                $totalValue      = esc_sql( $value->totalValue );
-                $appName         = esc_sql($option[0]['name'] );
-
-                if (!$wpdb->get_var( "SELECT id_order FROM mkm_api_orders WHERE id_order = $idOrder" ) ){
-                    $wpdb->query($wpdb->prepare("INSERT INTO mkm_api_orders (id_order, states, date_bought, date_paid, date_sent, date_received, price, is_insured, city, country, article_count, evaluation_grade, item_description, packaging, article_value, total_value, appname ) VALUES ( %d, %s, %s, %s, %s, %s, %f, %d, %s, %s, %d, %s, %s, %s, %f, %f, %s )", $idOrder, $state, $dateBought, $datePaid, $dateSent, $dateReceived, $price, $isInsured, $city, $country, $articleCount, $evaluationGrade, $itemDescription, $packaging, $articleValue, $totalValue, $appName ) );
-                }
-            }
+            // $data   = mkm_api_auth( "https://api.cardmarket.com/ws/v2.0/orders/1/8/101", $option[0]['app_token'], $option[0]['app_secret'], $option[0]['access_token'], $option[0]['token_secret'] );
 
         }
     }
