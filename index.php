@@ -36,12 +36,26 @@
 
     function mkm_api_create_table() {
         global $wpdb;
-        $query = "CREATE TABLE IF NOT EXISTS `mkm_api_settings` (
-            `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
-            `api_key` varchar(100) NOT NULL,
-            `api_set` varchar(255) NOT NULL,
-            PRIMARY KEY (`id`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8;";
+
+        $query = "CREATE TABLE IF NOT EXISTS `mkm_api_orders` (
+            `id` INT(11) unsigned NOT NULL AUTO_INCREMENT,
+            `id_order` INT(10) NOT NULL,
+            `states` VARCHAR(50) NOT NULL,
+            `date_bought` VARCHAR(50) NOT NULL,
+            `date_paid` VARCHAR(50) NOT NULL,
+            `date_sent` VARCHAR(50) NOT NULL,
+            `date_received` VARCHAR(50) NOT NULL,
+            `price` VARCHAR(50) NOT NULL,
+            `is_insured` BOOLEAN NOT NULL,
+            `city` VARCHAR(255) NOT NULL,
+            `country` VARCHAR(255) NOT NULL,
+            `article_count` INT(5) NOT NULL,
+            `evaluation_grade` VARCHAR(255) NOT NULL,
+            `item_description` VARCHAR(255) NOT NULL,
+            `packaging` VARCHAR(255) NOT NULL,
+            `article_value` VARCHAR(255) NOT NULL,
+            `total_value` VARCHAR(255) NOT NULL,
+            PRIMARY KEY (`id`)) ENGINE = InnoDBDEFAULT CHARSET=utf8;";
 
         $wpdb->query($query);
     }
@@ -182,10 +196,40 @@
     }
 
     function mkm_api_data() {
+
+        // $option = get_option( 'mkm_api_options' );
+        // if ( isset( $option ) && count( $option ) > 0 ) {
+        //     $data   = mkm_api_auth( "https://api.cardmarket.com/ws/v1.1/account", $option[0]['app_token'], $option[0]['app_secret'], $option[0]['access_token'], $option[0]['token_secret'] );
+        //     dump($data);
+
+        global $wpdb;
         $option = get_option( 'mkm_api_options' );
         if ( isset( $option ) && count( $option ) > 0 ) {
-            $data   = mkm_api_auth( "https://api.cardmarket.com/ws/v1.1/account", $option[0]['app_token'], $option[0]['app_secret'], $option[0]['access_token'], $option[0]['token_secret'] );
-            dump($data);
+            $data   = mkm_api_auth( "https://api.cardmarket.com/ws/v2.0/orders/1/8/100", $option[0]['app_token'], $option[0]['app_secret'], $option[0]['access_token'], $option[0]['token_secret'] );
+
+            foreach ( $data->order as $value ) {
+                $idOrder         = esc_sql( (int)$value->idOrder );
+                $state           = esc_sql( $value->state->state );
+                $dateBought      = esc_sql( $value->state->dateBought);
+                $datePaid        = esc_sql( $value->state->datePaid );
+                $dateSent        = esc_sql( $value->state->dateSent );
+                $dateReceived    = esc_sql( $value->state->dateReceived );
+                $price           = esc_sql( $value->shippingMethod->price );
+                $isInsured       = (int)esc_sql( $value->shippingMethod->isInsured );
+                $city            = esc_sql( $value->shippingAddress->city );
+                $country         = esc_sql( $value->shippingAddress->country );
+                $articleCount    = (int)esc_sql( $value->articleCount );
+                $evaluationGrade = esc_sql( $value->evaluation->evaluationGrade );
+                $itemDescription = esc_sql( $value->evaluation->itemDescription );
+                $packaging       = esc_sql( $value->evaluation->packaging );
+                $articleValue    = esc_sql( $value->articleValue );
+                $totalValue      = esc_sql( $value->totalValue );
+
+                if (!$wpdb->get_var( "SELECT id_order FROM mkm_api_orders WHERE id_order = $idOrder" ) ){
+                    $wpdb->query($wpdb->prepare("INSERT INTO mkm_api_orders (id_order, states, date_bought, date_paid, date_sent, date_received, price, is_insured, city, country, article_count, evaluation_grade, item_description, packaging, article_value, total_value ) VALUES ( %d, %s, %s, %s, %s, %s, %f, %d, %s, %s, %d, %s, %s, %s, %f, %f )", $idOrder, $state, $dateBought, $datePaid, $dateSent, $dateReceived, $price, $isInsured, $city, $country, $articleCount, $evaluationGrade, $itemDescription, $packaging, $articleValue, $totalValue ) );
+                }
+            }
+>>>>>>> 49e4b98568d8dd6cc3cc2d4530d790a53f357916
         }
     }
 
@@ -207,12 +251,16 @@
         */
 
         $method             = "GET";
+<<<<<<< HEAD
         //$url                = "https://api.cardmarket.com/ws/v1.1/account";
         //$appToken           = "HBi1qvutoSU5jmwh";
         //$appSecret          = "uT0V26MYB7AeZOyzIrqChmtI3LmhgqXo";
         //$accessToken        = "875XOAjMorDKmYxHDzHfV9Bc4oTCindT";
         //$accessSecret       = "mkSJ1Q0DPPNmwQ6fUYZjKQcbfd1X711z";
         $nonce              = "53eb1f44909d6";
+=======
+        $nonce              = wp_create_nonce();
+>>>>>>> 49e4b98568d8dd6cc3cc2d4530d790a53f357916
         $timestamp          = time();
         $signatureMethod    = "HMAC-SHA1";
         $version            = "1.0";
@@ -332,7 +380,11 @@
             *
             * @var $decoded \SimpleXMLElement|\stdClass Converted Object (XML|JSON)
             */
+<<<<<<< HEAD
         // $decoded            = json_decode($content);
+=======
+        //$decoded            = json_decode($content);
+>>>>>>> 49e4b98568d8dd6cc3cc2d4530d790a53f357916
         $decoded            = simplexml_load_string($content);
 
         return $decoded;
