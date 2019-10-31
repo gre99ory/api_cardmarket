@@ -229,7 +229,7 @@
                     $wpdb->query($wpdb->prepare("INSERT INTO mkm_api_orders (id_order, states, date_bought, date_paid, date_sent, date_received, price, is_insured, city, country, article_count, evaluation_grade, item_description, packaging, article_value, total_value ) VALUES ( %d, %s, %s, %s, %s, %s, %f, %d, %s, %s, %d, %s, %s, %s, %f, %f )", $idOrder, $state, $dateBought, $datePaid, $dateSent, $dateReceived, $price, $isInsured, $city, $country, $articleCount, $evaluationGrade, $itemDescription, $packaging, $articleValue, $totalValue ) );
                 }
             }
->>>>>>> 49e4b98568d8dd6cc3cc2d4530d790a53f357916
+
         }
     }
 
@@ -251,16 +251,7 @@
         */
 
         $method             = "GET";
-<<<<<<< HEAD
-        //$url                = "https://api.cardmarket.com/ws/v1.1/account";
-        //$appToken           = "HBi1qvutoSU5jmwh";
-        //$appSecret          = "uT0V26MYB7AeZOyzIrqChmtI3LmhgqXo";
-        //$accessToken        = "875XOAjMorDKmYxHDzHfV9Bc4oTCindT";
-        //$accessSecret       = "mkSJ1Q0DPPNmwQ6fUYZjKQcbfd1X711z";
-        $nonce              = "53eb1f44909d6";
-=======
         $nonce              = wp_create_nonce();
->>>>>>> 49e4b98568d8dd6cc3cc2d4530d790a53f357916
         $timestamp          = time();
         $signatureMethod    = "HMAC-SHA1";
         $version            = "1.0";
@@ -380,11 +371,9 @@
             *
             * @var $decoded \SimpleXMLElement|\stdClass Converted Object (XML|JSON)
             */
-<<<<<<< HEAD
+
         // $decoded            = json_decode($content);
-=======
-        //$decoded            = json_decode($content);
->>>>>>> 49e4b98568d8dd6cc3cc2d4530d790a53f357916
+
         $decoded            = simplexml_load_string($content);
 
         return $decoded;
