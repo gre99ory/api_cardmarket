@@ -13,8 +13,9 @@ jQuery(document).ready(function($){
 
             },
             success: function(result){
+                console.log(result);
                 if(result == 1){
-                    elem.parents('.mkm-api-key-row').fadeOut(300, function(){
+                        elem.parents('.mkm-api-key-row').fadeOut(300, function(){
                         elem.parents('.mkm-api-key-row').remove();
                     });
                 }

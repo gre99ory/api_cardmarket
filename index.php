@@ -16,6 +16,8 @@
  */
 
     register_activation_hook( __FILE__, 'mkm_api_create_table' );
+    register_activation_hook( __FILE__, 'mkm_api_activation' );
+    register_deactivation_hook( __FILE__, 'mkm_api_deactivation' );
     add_action( 'admin_menu', 'mkm_api_admin_menu' );
     add_action( 'admin_init', 'mkm_api_admin_settings' );
     add_action( 'wp_ajax_mkm_api_delete_key', 'mkm_api_ajax_delete_key' );
@@ -31,6 +33,28 @@
 			print_r( $var );
 			echo '</pre>';
 		}
+    }
+
+    function mkm_api_deactivation() {
+        $options = get_option( 'mkm_api_options' );
+        if ( is_array( $options ) && count( $options ) > 0 ) {
+            foreach( $options as $key => $value ) {
+                if ( wp_next_scheduled( 'mkm_api_cron_' . $key ) ) {
+                    wp_clear_scheduled_hook( 'mkm_api_cron_' . $key );
+                }
+            }
+        }
+    }
+
+    function mkm_api_activation() {
+        $options = get_option( 'mkm_api_options' );
+        if ( is_array( $options ) && count( $options ) > 0 ) {
+            foreach( $options as $key => $value ) {
+                if ( !wp_next_scheduled( 'mkm_api_cron_' . $key ) ) {
+                    wp_schedule_event( time(), $value['cron'], 'mkm_api_cron_' . $key );
+                }
+            }
+        }
     }
 
     function mkm_api_modal_to_footer() {
@@ -77,14 +101,21 @@
         $wpdb->query($query);
     }
 
+    function mkm_api_delete_app_orders( $app ) {
+        global $wpdb;
+        $wpdb->delete( 'mkm_api_orders', array( 'appname' => $app ), array( '%s' ) );
+    }
+
     function mkm_api_ajax_delete_key() {
+
         $post    = $_POST;
 
         $flag    = 0;
         $options = get_option( 'mkm_api_options' );
 
         if ( is_array ( $options ) && count( $options ) > 0 ) {
-            $arr = array();
+            $appname = $options[$post['data']]['name'];
+            $arr     = array();
             foreach( $options as $item ) {
                 if ( $item['app_token'] == $post['data'] ) continue;
                 $arr[] = $item;
@@ -93,9 +124,13 @@
 
         $up = update_option( 'mkm_api_options', $arr );
 
-        if ( $up ) $flag = 1;
+        if ( $up ) {
+            mkm_api_delete_app_orders( $appname );
+            wp_clear_scheduled_hook( 'mkm_api_cron_' . $post['data'] );
+            echo 1;
+            wp_die();
+        };
 
-        echo $flag;
         die;
     }
 
@@ -143,6 +178,11 @@
         if ( !array_key_exists( $post['data'], $schedules ) ) wp_die( 'error' );
 
         $option[$key]['cron'] = $post['data'];
+
+        $timestamp = wp_next_scheduled( 'mkm_api_cron_' . $key );
+        wp_unschedule_event( $timestamp, 'mkm_api_cron_' . $key );
+
+        wp_reschedule_event( time(), $post['data'], 'mkm_api_cron_' . $key );
         update_option( 'mkm_api_options', $option );
     }
 
@@ -182,6 +222,10 @@
         $add_array['get_data']     = 0;
 
         $arr[$add_array['app_token']] = $add_array;
+
+        if ( !wp_next_scheduled( 'mkm_api_cron_' . $option['app_token'] ) ) {
+            wp_schedule_event( time(), $option['cron'], 'mkm_api_cron_' . $option['app_token'] );
+        }
 
         return $arr;
     }
