@@ -36,21 +36,36 @@
     border: 1px solid #ccc;
 }
 
-.thickbox-show-progress {
-    display: none;
+.mkm-api-get-all-data-td {
+    color: green;
 }
 
-#content-for-modal {
-    display: none;
+.mkm-api-get-all-data-td p {
+    padding: 0;
+    margin: 0;
 }
 
 .mkm-api-progress-bar {
+    border-radius: 3px;
+    width: 50%;
     height: 25px;
     position: relative;
     background: #555;
     padding: 3px;
     box-shadow: inset 0 -1px 1px rgba(255,255,255,0.3);
-    margin-top: 15px;
+}
+
+#content-for-modal {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    background: rgba(255, 255, 255, 0.61);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    display: none;
 }
 
 .mkm-api-progress-bar .mkm-api-progress {
@@ -66,6 +81,11 @@
     border-radius: 3px;
 }
 
+@keyframes animate-stripes {
+        0% {background-position: 0 0;}
+        100% {background-position: 600px 0;}
+    }
+
 .mkm-api-progress-bar .mkm-api-progress:after {
     content: "";
     position: absolute;
@@ -78,6 +98,7 @@
     background-size: 50px 50px;
     animation: move 2s linear infinite;
     overflow: hidden;
+    animation: animate-stripes 30s linear infinite;
 }
 
 .mkm-api-progress-bar .proc {

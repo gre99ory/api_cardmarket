@@ -20,7 +20,10 @@
     add_action( 'admin_init', 'mkm_api_admin_settings' );
     add_action( 'wp_ajax_mkm_api_delete_key', 'mkm_api_ajax_delete_key' );
     add_action( 'wp_ajax_mkm_api_ajax_data', 'mkm_api_ajax_get_data' );
+    add_action( 'wp_ajax_mkm_api_change_cron_select', 'mkm_api_ajax_change_cron_select' );
     add_action( 'admin_enqueue_scripts', 'mkm_api_enqueue_admin' );
+    add_action( 'admin_print_footer_scripts-toplevel_page_mkm-api-options', 'mkm_api_modal_to_footer');
+    add_filter( 'cron_schedules', 'mkm_api_add_schedules', 20 );
 
     if ( !function_exists( 'dump' ) ) {
 		function dump( $var ) {
@@ -28,6 +31,18 @@
 			print_r( $var );
 			echo '</pre>';
 		}
+    }
+
+    function mkm_api_modal_to_footer() {
+
+        ?>
+            <div id="content-for-modal">
+                <div class="mkm-api-progress-bar">
+                    <span class="mkm-api-progress" style="width: 30%"></span>
+                    <span class="proc">30%</span>
+                </div>
+            </div>
+        <?php
     }
 
     function mkm_api_enqueue_admin() {
@@ -87,26 +102,48 @@
     function mkm_api_ajax_get_data() {
         $post    = $_POST;
         $arr     = array();
+        $key     = $post['key'];
+
+        if( $key == '' ) wp_die( 'end' );
 
         $option = get_option( 'mkm_api_options' );
 
-        if( $post['count'] == 1 ) {
-            $count = mkm_api_auth( "https://api.cardmarket.com/ws/v2.0/account", $option[0]['app_token'], $option[0]['app_secret'], $option[0]['access_token'], $option[0]['token_secret']);
+        if ( $post['count'] == 1 ) {
+            $count = mkm_api_auth( "https://api.cardmarket.com/ws/v2.0/account", $option[$key]['app_token'], $option[$key]['app_secret'], $option[$key]['access_token'], $option[$key]['token_secret']);
             $arr['count'] = esc_sql( $count->account->sellCount );
         } else {
             $arr['count'] = $post['count'];
         }
-        
-        $data = mkm_api_auth( "https://api.cardmarket.com/ws/v2.0/orders/1/8/" . $post['data'], $option[0]['app_token'], $option[0]['app_secret'], $option[0]['access_token'], $option[0]['token_secret'] );
 
+        $data = mkm_api_auth( "https://api.cardmarket.com/ws/v2.0/orders/1/8/" . $post['data'], $option[$key]['app_token'], $option[$key]['app_secret'], $option[$key]['access_token'], $option[$key]['token_secret'] );
         if ( $data ) {
-            //mkm_api_add_data_from_db( $data );
+            mkm_api_add_data_from_db( $data, $key );
             $arr['data'] = $post['data'] + 100;
+            $arr['key']  = $key;
             echo json_encode( $arr );
         } else {
-            echo 'end';
+            $option[$key]['get_data'] = 1;
+            update_option( 'mkm_api_options', $option );
+            wp_die( 'end' );
         }
+
         die;
+    }
+
+    function mkm_api_ajax_change_cron_select() {
+        $post    = $_POST;
+        $arr     = array();
+        $key     = $post['key'];
+
+        if( $key == '' ) wp_die( 'error' );
+
+        $option    = get_option( 'mkm_api_options' );
+        $schedules = wp_get_schedules();
+
+        if ( !array_key_exists( $post['data'], $schedules ) ) wp_die( 'error' );
+
+        $option[$key]['cron'] = $post['data'];
+        update_option( 'mkm_api_options', $option );
     }
 
     function mkm_api_admin_menu() {
@@ -125,37 +162,34 @@
 
         if ( isset( $_POST['data'] ) ) return $option;
 
-        $add_array             = array();
-        $select                = array( 'min', 'hours', 'days' );
-        $arr                   = ( is_array( get_option( 'mkm_api_options' ) ) && count( get_option( 'mkm_api_options' ) ) > 0 ) ? get_option( 'mkm_api_options' ) : array();
+        $add_array  = array();
+        $schedules  = wp_get_schedules();
+        $arr        = ( is_array( get_option( 'mkm_api_options' ) ) && count( get_option( 'mkm_api_options' ) ) > 0 ) ? get_option( 'mkm_api_options' ) : array();
 
         if ( $option['name'] == '' ) return $arr;
         if ( $option['app_token'] == '' ) return $arr;
         if ( $option['app_secret'] == '' ) return $arr;
         if ( $option['access_token'] == '' ) return $arr;
         if ( $option['token_secret'] == '' ) return $arr;
+        if ( !array_key_exists( $option['cron'], $schedules ) ) return $arr;
 
-        $add_array['name']         = $option['name'];
-        $add_array['app_token']    = $option['app_token'];
-        $add_array['app_secret']   = $option['app_secret'];
-        $add_array['access_token'] = $option['access_token'];
         $add_array['token_secret'] = $option['token_secret'];
-        $add_array['interval']     = (int)$option['key'] == 0 ? 1 : $option['key'];
-        if ( in_array( $option['time'], $select ) ) {
-            $add_array['time'] = $option['time'];
-        } else {
-            $add_array['time'] = 'min';
-        }
+        $add_array['access_token'] = $option['access_token'];
+        $add_array['app_secret']   = $option['app_secret'];
+        $add_array['app_token']    = $option['app_token'];
+        $add_array['name']         = $option['name'];
+        $add_array['cron']         = $option['cron'];
+        $add_array['get_data']     = 0;
 
-        $arr[] = $add_array;
+        $arr[$add_array['app_token']] = $add_array;
 
         return $arr;
     }
 
     function mkm_api_options( ) {
-        $option = get_option( 'mkm_api_options' );
+        $option    = get_option( 'mkm_api_options' );
+        $schedules = wp_get_schedules();
 
-        $time   = array( 'min' => __( 'minutes', 'mkm-api' ), 'hours' => __( 'hours', 'mkm-api' ), 'days' => __( 'days', 'mkm-api' ) );
         ?>
 
             <div class="wrap">
@@ -169,10 +203,17 @@
                             <td>
                                 <table class="mkm-api-apps-show">
                                     <?php foreach( $option as $item ){ ?>
-                                    <?php $interval = $item['interval'] . ' ' . $time[$item['time']]; ?>
+                                    <?php $interval = ''; ?>
                                         <tr class="mkm-api-key-row">
                                             <td><?php echo $item['name']; ?></td>
-                                            <td>(<?php _e( 'Interval', 'mkm-api' ); ?> : <?php echo $interval; ?>)</td>
+                                            <td>
+                                                <select class="mkm-api-cron-select" data-key="<?php echo $item['app_token']; ?>">
+                                                    <?php foreach( $schedules as $sch_key => $sch_val ) { ?>
+                                                        <option <?php echo $sch_key == $item['cron'] ? 'selected ' : ''; ?>value="<?php echo $sch_key; ?>"><?php echo $sch_val['display']; ?></option>
+                                                    <?php } ?>
+                                                </select>
+                                            </td>
+                                            <td class="mkm-api-get-all-data-td"><?php echo (bool)$item['get_data'] ? __( 'Data received', 'mkm-api' ) : submit_button( __( 'Get all data', 'mkm-api' ), 'primary mkm-api-get-all-data', 'submit', true, array( 'data-key' => $item['app_token'] ) ) ?></td>
                                             <td class="mkm-api-delete-key"><a href="" data-key="<?php echo $item['app_token']; ?>"><?php _e( 'Delete', 'mkm-api' ); ?></a></td>
                                         </tr>
                                     <?php } ?>
@@ -186,12 +227,10 @@
                                 <p>
                                     <label class="mkm-api-app-form-label" for="mkm_api_setting_name_id"><?php _e( 'Name App', 'mkm-api' ); ?></label>
                                     <input type="text" value="" class="regular-text" name="mkm_api_options[name]" id="mkm_api_setting_name_id" required>
-                                    <label for="mkm_api_setting_interval_id"><?php _e( 'Interval', 'mkm-api' ); ?></label>
-                                    <input type="number" value="" class="small-text" name="mkm_api_options[interval]" id="mkm_api_setting_interval_id" >
-                                    <label for="mkm_api_setting_time_id"><?php _e( 'Time', 'mkm-api' ); ?></label>
-                                    <select name="mkm_api_options[time]" id="mkm_api_setting_time_id">
-                                    <?php foreach ( $time as $time_key => $time_val ) { ?>
-                                        <option value="<?php echo $time_key; ?>"><?php echo $time_val; ?></option>
+                                    <label for="mkm_api_setting_cron_id"><?php _e( 'Interval', 'mkm-api' ); ?></label>
+                                    <select name="mkm_api_options[cron]" id="mkm_api_setting_cron_id">
+                                    <?php foreach ( $schedules as $time_key => $time_val ) { ?>
+                                        <option value="<?php echo $time_key; ?>"><?php echo $time_val['display']; ?></option>
                                     <?php } ?>
                                     </select>
                                 </p>
@@ -215,23 +254,17 @@
                         </tr>
                     </table>
 
-                <?php submit_button( __( 'Add API', 'mkm-api' ), 'primary', 'submit', true, array( 'id' => 'mkm-api-add-api') ); ?>
+                <?php submit_button( __( 'Add App', 'mkm-api' ) ); ?>
                 </form>
-                <a href="/?TB_inline&width=300&height=45&inlineId=content-for-modal" class="thickbox">----</a>
-                <div id="content-for-modal">
-                    <div class="mkm-api-progress-bar">
-                        <span class="mkm-api-progress" style="width: 30%"></span>
-                        <span class="proc">30%</span>
-                    </div>
-                </div>
-                <?php add_thickbox(); ?>
                 <?php mkm_api_data(); ?>
             </div>
+
         <?php
     }
 
-    function mkm_api_add_data_from_db( $data ) {
+    function mkm_api_add_data_from_db( $data, $key ) {
         global $wpdb;
+        $option = get_option( 'mkm_api_options' );
 
         foreach ( $data->order as $value ) {
             $idOrder         = esc_sql( (int)$value->idOrder );
@@ -250,7 +283,7 @@
             $packaging       = esc_sql( $value->evaluation->packaging );
             $articleValue    = esc_sql( $value->articleValue );
             $totalValue      = esc_sql( $value->totalValue );
-            $appName         = esc_sql($option[0]['name'] );
+            $appName         = esc_sql( $option[$key]['name'] );
 
 
             if (!$wpdb->get_var( "SELECT id_order FROM mkm_api_orders WHERE id_order = $idOrder" ) ){
@@ -463,4 +496,27 @@
                 <?php } ?>
             </table>
         <?php
+    }
+
+    function mkm_api_add_schedules( $schedules ) {
+        $schedules['mkm-api-minute'] = array(
+            'interval' => 60,
+            'display'  => __( 'Every 1 minute', 'mkm-api' ),
+        );
+
+        $schedules['mkm-api-ten-minutes'] = array(
+            'interval' => 600,
+            'display'  => __( 'Every 10 minutes', 'mkm-api' ),
+        );
+
+        $schedules['mkm-api-four-hours'] = array(
+            'interval' => 4* HOUR_IN_SECONDS,
+            'display'  => __( 'Every 4 hours', 'mkm-api' ),
+        );
+
+        uasort( $schedules, function( $a, $b ){
+            if ( $a['interval'] == $b['interval'] )return 0;
+            return $a['interval'] < $b['interval'] ? -1 : 1;
+        });
+        return $schedules;
     }
