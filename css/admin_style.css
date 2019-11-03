@@ -7,6 +7,10 @@
     width: 10%;
 }
 
+.mkm-api-wrap {
+    position: relative;
+}
+
 .mkm-api-delete-key a {
     color: red;
 }
@@ -110,6 +114,97 @@
     text-align: center;
 }
 
+.mkm-api-show-more-list-orders {
+    text-align: center;
+    margin-top: 20px;
+}
+
+.mkm-api-loader {
+    text-align: center;
+    display: none;
+    position: absolute;
+    top: 20%;
+    left: 50%;
+    margin-left: -40px;
+}
+
+.gear{
+    width: 50px;
+    height: 50px;
+    border-radius: 10%;
+    margin: 10px auto;
+    border: 5px solid #ccc;
+    position: relative;
+}
+
+.gear:after{
+    content: "";
+    width: 70px;
+    height: 70px;
+    border-radius: 100%;
+    display: block;
+    border: 4px dashed #ccc;
+    position: absolute;
+    top: -19px;
+    left: -19px;
+    box-shadow: inset 0px 0 0 13px #ccc;
+    transform: scale(.5) rotate(0deg);
+    animation: gear 6s linear infinite;
+}
+
+.gear:before{
+    content: "";
+    width: 35px;
+    height: 35px;
+    border-radius: 100%;
+    display: block;
+    border: 3px dashed #ccc;
+    position: absolute;
+    top: 19px;
+    right: -9px;
+    box-shadow: inset 0px 0 0 10px #ccc;
+    transform: scale(.5) rotate(0deg);
+    animation: gear2 4s linear infinite;
+}
+
+@keyframes gear {
+   0%{transform:scale(.5) rotate(0deg);}
+   100%{transform:scale(.5) rotate(360deg);}
+}
+
+@keyframes gear2 {
+   0%{transform:scale(.5) rotate(0deg);}
+   100%{transform:scale(.5)  rotate(-360deg);}
+}
+
+.mkm-api-td-left {
+    display: none;
+}
+
+.mkm-api-filter {
+    display: flex;
+    align-items: center;
+}
+
+.mkm-api-filter-date {
+    display: flex;
+    align-items: center;
+}
+
+.mkm-api-filter-date-item {
+    display: flex;
+    align-items: center;
+    margin: 0 0 0 10px;
+}
+
+.mkm-api-filter-count {
+    margin: 0 25px 0 0;
+}
+
+.mkm-api-filter-select-app {
+    margin: 0 25px 0 0;
+}
+
 @media ( max-width: 782px) {
     .mkm-api-app-td {
         width: 100%;
@@ -131,5 +226,45 @@
 
     .mkm-api-get-all-data-td p {
         text-align: center;
+    }
+
+    .mkm-api-progress-bar {
+        width: 80%;
+    }
+
+    .mkm-api-list-orders {
+        display: none;
+    }
+
+    .mkm-api-td-left {
+        display: block;
+    }
+
+    .mkm-api-list-order-row td {
+        padding: 7px 15px;
+        border-bottom: 1px solid #e7e7e7;
+        overflow: hidden;
+    }
+
+    .mkm-api-td-left, .mkm-api-td-right {
+        float: left;
+        width: 50%;
+    }
+
+    .mkm-api-filter, .mkm-api-filter-date {
+        display: block;
+    }
+
+    .mkm-api-filter-date-item {
+        align-items: center;
+        margin: 0 0 5px 0;
+        justify-content: space-between;
+    }
+
+    .mkm-api-filter-select-app {
+        display: flex;
+        align-items: center;
+        margin: 0 0 5px 0;
+        justify-content: space-between;
     }
 }

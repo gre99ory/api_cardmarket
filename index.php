@@ -23,8 +23,9 @@
     add_action( 'wp_ajax_mkm_api_delete_key', 'mkm_api_ajax_delete_key' );
     add_action( 'wp_ajax_mkm_api_ajax_data', 'mkm_api_ajax_get_data' );
     add_action( 'wp_ajax_mkm_api_change_cron_select', 'mkm_api_ajax_change_cron_select' );
+    add_action( 'wp_ajax_mkm_api_ajax_get_orders', 'mkm_api_ajax_get_orders' );
     add_action( 'admin_enqueue_scripts', 'mkm_api_enqueue_admin' );
-    add_action( 'admin_print_footer_scripts-toplevel_page_mkm-api-options', 'mkm_api_modal_to_footer');
+    add_action( 'admin_print_footer_scripts-toplevel_page_mkm-api-options', 'mkm_api_modal_to_footer' );
     add_filter( 'cron_schedules', 'mkm_api_add_schedules', 20 );
 
     if ( !function_exists( 'dump' ) ) {
@@ -70,7 +71,9 @@
     }
 
     function mkm_api_enqueue_admin() {
+        wp_enqueue_script('jquery-ui-datepicker');
         wp_enqueue_script( 'mkm-api-admin', plugins_url( 'js/admin_scripts.js', __FILE__ ) );
+        wp_enqueue_style('jqueryui', '//ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/themes/smoothness/jquery-ui.css', false, null );
         wp_enqueue_style( 'mkm-api-admin', plugins_url( 'css/admin_style.css', __FILE__ ) );
     }
 
@@ -151,7 +154,8 @@
         }
 
         $data = mkm_api_auth( "https://api.cardmarket.com/ws/v2.0/orders/1/8/" . $post['data'], $option[$key]['app_token'], $option[$key]['app_secret'], $option[$key]['access_token'], $option[$key]['token_secret'] );
-        if ( $data ) {
+
+        if ( count ( $data->order ) > 0 ) {
             mkm_api_add_data_from_db( $data, $key );
             $arr['data'] = $post['data'] + 100;
             $arr['key']  = $key;
@@ -159,7 +163,8 @@
         } else {
             $option[$key]['get_data'] = 1;
             update_option( 'mkm_api_options', $option );
-            wp_die( 'end' );
+            echo 'end';
+            die;
         }
 
         die;
@@ -482,46 +487,185 @@
         return $decoded;
     }
 
-    function mkm_api_get_orders() {
+    function mkm_api_ajax_get_orders(){
+        $post = $_POST;
+
+        if ( $post['app'] == '' || $post['from'] == '' || $post['to'] == '' ) {
+            echo 'no_data';
+            die();
+        }
+
+        if ( $post['from'] > $post['to'] ) {
+            echo 'no_data';
+            die();
+        }
+
+        $start = ( !isset( $post['start'] ) || $post['start'] == 0 || $post['start'] == '' ) ? 0 : $post['start'];
+
+        $html = '';
+
+        $data = mkm_api_get_orders( $start, $post['app'], $post['from']/1000, $post['to']/1000 );
+        if ( $data['count'] > 0 ) {
+            foreach ( $data['result'] as $res_val ) {
+                $html .= '<tr class="mkm-api-list-order-row">';
+
+                $html .= '<td><div class="mkm-api-td-left">' . __( 'ID Order', 'mkm-api' ) . '</div><div class="mkm-api-td-right">' . $res_val->id_order. '</div>';
+                $html .= '<div class="mkm-api-td-left">' . __( 'App name', 'mkm-api' ) . '</div><div class="mkm-api-td-right">' . $res_val->appname . '</div></td>';
+
+                $html .= '<td><div class="mkm-api-td-left">' . __( 'Date bought', 'mkm-api' ) . '</div><div class="mkm-api-td-right">' . date_i18n( "d M y, H:i:s", $res_val->date_bought ) . '</div>';
+                $html .= '<div class="mkm-api-td-left">' . __( 'Date received', 'mkm-api' ) . '</div><div class="mkm-api-td-right">' . date_i18n( "d M y, H:i:s", $res_val->date_received ) . '</div></td>';
+
+                $html .= '<td><div class="mkm-api-td-left">' . __( 'Date Paid', 'mkm-api' ) . '</div><div class="mkm-api-td-right">' . date_i18n( "d M y, H:i:s", $res_val->date_paid ) . '</div>';
+                $html .= '<div class="mkm-api-td-left">' . __( 'Date sent', 'mkm-api' ) . '</div><div class="mkm-api-td-right">' . date_i18n( "d M y, H:i:s", $res_val->date_sent ) . '</div></td>';
+    
+                $html .= '<td><div class="mkm-api-td-left">' . __( 'State', 'mkm-api' ) . '</div><div class="mkm-api-td-right">' . $res_val->states. '</div>';
+                $html .= '<div class="mkm-api-td-left">' . __( 'Price', 'mkm-api' ) . '</div><div class="mkm-api-td-right">' . number_format( $res_val->price, 2, '.', '' ) . '</div></td>';
+
+                $html .= '<td><div class="mkm-api-td-left">' . __( 'City/Country', 'mkm-api' ) . '</div><div class="mkm-api-td-right">' . $res_val->city . ' ' . $res_val->country . '</div>';
+                $html .= '<div class="mkm-api-td-left">' . __( 'Article count', 'mkm-api' ) . '</div><div class="mkm-api-td-right">' . $res_val->article_count . '</div></td>';
+
+                $html .= '<td><div class="mkm-api-td-left">' . __( 'Article value', 'mkm-api' ) . '</div><div class="mkm-api-td-right">' . number_format( $res_val->article_count, 2, '.', '' ) . '</div>';
+                $html .= '<div class="mkm-api-td-left">' . __( 'Total value', 'mkm-api' ) . '</div><div class="mkm-api-td-right">' . number_format( $res_val->total_value, 2, '.', '' ) . '</div></td>';
+
+                $html .= '<td><div class="mkm-api-td-left">' . __( 'Is insured', 'mkm-api' ) . '</div><div class="mkm-api-td-right">' . $res_val->is_insured . '</div>';
+                $html .= '<div class="mkm-api-td-left">' . __( 'Packaging', 'mkm-api' ) . '</div><div class="mkm-api-td-right">' . $res_val->packaging . '</div></td>';
+
+                $html .= '<td><div class="mkm-api-td-left">' . __( 'Evaluation grade', 'mkm-api' ) . '</div><div class="mkm-api-td-right">' . $res_val->evaluation_grade . '</div>';
+                $html .= '<div class="mkm-api-td-left">' . __( 'Item description', 'mkm-api' ) . '</div><div class="mkm-api-td-right">' . $res_val->item_description . '</div></td>';
+
+                $html .= '</tr>';
+            }
+        }
+
+        $data['html'] = $html;
+        $data['start'] = $start + 30;
+
+        echo json_encode( $data );
+        die();
+    }
+
+    function mkm_api_get_orders( $start = 0, $apps = 'all', $from = 0, $to = 0 ) {
+        $perpage = 30;
+        $data    = array();
+        $where   = 'WHERE';
+        $to = $to > 0 ? $to : time();
         global $wpdb;
-        $query = "SELECT * FROM mkm_api_orders";
-        return $wpdb->get_results($query);
+        if ( $apps != 'all' ) {
+            $where .= " appname = '$apps' AND";
+        }
+        $data['count']  = $wpdb->get_var( "SELECT count(*) FROM mkm_api_orders $where date_bought BETWEEN $from AND $to" );
+        $data['result'] = $wpdb->get_results( "SELECT * FROM mkm_api_orders $where date_bought BETWEEN $from AND $to ORDER BY date_bought DESC LIMIT $start, $perpage" );
+        return $data;
     }
 
     function mkm_api_orders() {
 
-        $data = mkm_api_get_orders();
+        $result  = mkm_api_get_orders();
+        $data    = $result['result'];
+        $options = get_option( 'mkm_api_options' );
 
         ?>
-            <div class="wrap">
+            <div class="wrap mkm-api-wrap">
                 <h2><?php _e( 'MKM API Orders', 'mkm-api' ); ?></h2>
+            <div class="mkm-api-filter">
+                <div class="mkm-api-filter-count" data-count="<?php echo $result['count']; ?>">
+                    <?php echo __( 'Count orders', 'mkm-api' ) . ': <span class="mkm-api-data-count">' . $result['count']; ?></span>
+                </div>
+
+                <div class="mkm-api-filter-select-app">
+                    <label for="mkm-api-filter-select-app-id"><?php _e( 'Filter App', 'mkm-api' ); ?></label>
+                    <select id="mkm-api-filter-select-app-id">
+                        <option value="all"><?php _e( 'All Apps', 'mkm-api' ); ?></option>
+                        <?php foreach( $options as $item ) { ?>
+                            <option value="<?php echo $item['name']; ?>"><?php echo $item['name']; ?></option>
+                        <?php } ?>
+                    </select>
+                </div>
+                <div class="mkm-api-filter-date">
+                    <div class="mkm-api-filter-date-item">
+                        <?php _e( 'Filter Date: ', 'mkm-api' ); ?>
+                    </div>
+                    <div class="mkm-api-filter-date-item">
+                        <label for="mkm-api-filter-date-from"><?php _e( 'From', 'mkm-api' ); ?></label>
+                        <input id="mkm-api-filter-date-from">
+                    </div>
+                    <div class="mkm-api-filter-date-item">
+                        <label for="mkm-api-filter-date-to"><?php _e( 'To', 'mkm-api' ); ?></label>
+                        <input id="mkm-api-filter-date-to">
+                    </div>
+                </div>
             </div>
             <table class="form-table mkm-api-orders-table">
                 <tr class="mkm-api-list-orders">
-                    <td><?php _e( 'ID Order', 'mkm-api' ); ?></td>
-                    <td><?php _e( 'State', 'mkm-api' ); ?></td>
-                    <td><?php _e( 'Date bought', 'mkm-api' ); ?></td>
-                    <td><?php _e( 'Price', 'mkm-api' ); ?></td>
-                    <td><?php _e( 'City/Country', 'mkm-api' ); ?></td>
-                    <td><?php _e( 'Article count', 'mkm-api' ); ?></td>
-                    <td><?php _e( 'Article value', 'mkm-api' ); ?></td>
-                    <td><?php _e( 'Total value', 'mkm-api' ); ?></td>
-                    <td><?php _e( 'App name', 'mkm-api' ); ?></td>
+                    <td><?php _e( 'ID Order', 'mkm-api' ); ?><br><?php _e( 'App name', 'mkm-api' ); ?></td>
+                    <td><?php _e( 'Date bought', 'mkm-api' ); ?><br><?php _e( 'Date received', 'mkm-api' ); ?></td>
+                    <td><?php _e( 'Date paid', 'mkm-api' ); ?><br><?php _e( 'Date sent', 'mkm-api' ); ?></td>
+                    <td><?php _e( 'State', 'mkm-api' ); ?><br><?php _e( 'Price', 'mkm-api' ); ?></td>
+                    <td><?php _e( 'City/Country', 'mkm-api' ); ?><br><?php _e( 'Article count', 'mkm-api' ); ?></td>
+                    <td><?php _e( 'Article value', 'mkm-api' ); ?><br><?php _e( 'Total value', 'mkm-api' ); ?></td>
+                    <td><?php _e( 'Is insured', 'mkm-api' ); ?><br><?php _e( 'Packaging', 'mkm-api' ); ?></td>
+                    <td><?php _e( 'Evaluation grade', 'mkm-api' ); ?><br><?php _e( 'Item description', 'mkm-api' ); ?></td>
                 </tr>
                 <?php foreach ( $data as $value ) { ?>
-                    <tr class="mkm-api-list-order-row">
-                    <td><?php echo $value->id_order; ?></td>
-                    <td><?php echo $value->states; ?></td>
-                    <td><?php echo $value->date_bought; ?></td>
-                    <td><?php echo number_format( $value->price, 2, '.', '' ); ?></td>
-                    <td><?php echo $value->city . ' ' . $value->country;  ?></td>
-                    <td><?php echo $value->article_count; ?></td>
-                    <td><?php echo number_format( $value->article_count, 2, '.', '' ); ?></td>
-                    <td><?php echo number_format( $value->total_value, 2, '.', '' ); ?></td>
-                    <td><?php echo $value->appname; ?></td>
+                <tr class="mkm-api-list-order-row">
+                    <td>
+                        <div class="mkm-api-td-left"><?php _e( 'ID Order', 'mkm-api' ); ?></div>
+                        <div class="mkm-api-td-right"><?php echo $value->id_order; ?></div>
+                        <div class="mkm-api-td-left"><?php _e( 'App name', 'mkm-api' ); ?></div>
+                        <div class="mkm-api-td-right"><?php echo $value->appname; ?></td>
+                    </td>
+                    <td>
+                        <div class="mkm-api-td-left"><?php _e( 'Date bought', 'mkm-api' ); ?></div>
+                        <div class="mkm-api-td-right"><?php echo date_i18n( "d M y, H:i:s", $value->date_bought ); ?></div>
+                        <div class="mkm-api-td-left"><?php _e( 'Date received', 'mkm-api' ); ?></div>
+                        <div class="mkm-api-td-right"><?php echo date_i18n( "d M y, H:i:s", $value->date_received ); ?></div>
+                    </td>
+                    <td>
+                        <div class="mkm-api-td-left"><?php _e( 'Date paid', 'mkm-api' ); ?></div>
+                        <div class="mkm-api-td-right"><?php echo date_i18n( "d M y, H:i:s", $value->date_paid ); ?></div>
+                        <div class="mkm-api-td-left"><?php _e( 'Date sent', 'mkm-api' ); ?></div>
+                        <div class="mkm-api-td-right"><?php echo date_i18n( "d M y, H:i:s", $value->date_sent ); ?></div>
+                    </td>
+                    <td>
+                        <div class="mkm-api-td-left"><?php _e( 'State', 'mkm-api' ); ?></div>
+                        <div class="mkm-api-td-right"><?php echo $value->states; ?></div>
+                        <div class="mkm-api-td-left"><?php _e( 'Price', 'mkm-api' ); ?></div>
+                        <div class="mkm-api-td-right"><?php echo number_format( $value->price, 2, '.', '' ); ?></div>
+                    </td>
+                    <td>
+                        <div class="mkm-api-td-left"><?php _e( 'City/Country', 'mkm-api' ); ?></div>
+                        <div class="mkm-api-td-right"><?php echo $value->city . ' ' . $value->country;  ?></div>
+                        <div class="mkm-api-td-left"><?php _e( 'Article count', 'mkm-api' ); ?></div>
+                        <div class="mkm-api-td-right"><?php echo $value->article_count; ?></td>
+                    </td>
+                    <td>
+                        <div class="mkm-api-td-left"><?php _e( 'Article value', 'mkm-api' ); ?></div>
+                        <div class="mkm-api-td-right"><?php echo number_format( $value->article_count, 2, '.', '' ); ?></div>
+                        <div class="mkm-api-td-left"><?php _e( 'Total value', 'mkm-api' ); ?></div>
+                        <div class="mkm-api-td-right"><?php echo number_format( $value->total_value, 2, '.', '' ); ?></div>
+                    </td>
+                    <td>
+                        <div class="mkm-api-td-left"><?php _e( 'Is insured', 'mkm-api' ); ?></div>
+                        <div class="mkm-api-td-right"><?php echo $value->is_insured; ?></div>
+                        <div class="mkm-api-td-left"><?php _e( 'Packaging', 'mkm-api' ); ?></div>
+                        <div class="mkm-api-td-right"><?php echo $value->packaging; ?></div>
+                    </td>
+                    <td>
+                        <div class="mkm-api-td-left"><?php _e( 'Evaluation grade', 'mkm-api' ); ?></div>
+                        <div class="mkm-api-td-right"><?php echo $value->evaluation_grade; ?></div>
+                        <div class="mkm-api-td-left"><?php _e( 'Item description', 'mkm-api' ); ?></div>
+                        <div class="mkm-api-td-right"><?php echo $value->item_description; ?></div>
+                    </td>
                 </tr>
                 <?php } ?>
             </table>
+            <div class="mkm-api-loader">
+                <div class="gear"></div> 
+            </div>
+            <div class="mkm-api-show-more-list-orders">
+                <button class="button button-primary" data-start="30"><?php _e( 'Show more', 'mkm-api' ); ?> <span id="mkm-api-show-more"></span></button>
+            </div>
+        </div>
         <?php
     }
 
