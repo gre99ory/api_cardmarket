@@ -109,3 +109,27 @@
     color: #ccc;
     text-align: center;
 }
+
+@media ( max-width: 782px) {
+    .mkm-api-app-td {
+        width: 100%;
+    }
+    .mkm-api-app-td table{
+        width: 100%;
+    }
+
+    .mkm-api-key-row td {
+        text-align: center;
+        padding: 5px;
+    }
+
+    .mkm-api-key-row td:first-child {
+        width: 100%;
+        font-style: italic;
+        text-align: center;
+    }
+
+    .mkm-api-get-all-data-td p {
+        text-align: center;
+    }
+}

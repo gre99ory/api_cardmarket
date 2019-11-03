@@ -39,8 +39,8 @@
         $options = get_option( 'mkm_api_options' );
         if ( is_array( $options ) && count( $options ) > 0 ) {
             foreach( $options as $key => $value ) {
-                if ( wp_next_scheduled( 'mkm_api_cron_' . $key ) ) {
-                    wp_clear_scheduled_hook( 'mkm_api_cron_' . $key );
+                if ( wp_next_scheduled( 'mkm_api_cron_' . $key, array( array( 'key' => $key ) ) ) ) {
+                    wp_clear_scheduled_hook( 'mkm_api_cron_' . $key, array( array( 'key' => $key ) ) );
                 }
             }
         }
@@ -50,8 +50,8 @@
         $options = get_option( 'mkm_api_options' );
         if ( is_array( $options ) && count( $options ) > 0 ) {
             foreach( $options as $key => $value ) {
-                if ( !wp_next_scheduled( 'mkm_api_cron_' . $key ) ) {
-                    wp_schedule_event( time(), $value['cron'], 'mkm_api_cron_' . $key );
+                if ( !wp_next_scheduled( 'mkm_api_cron_' . $key, array( array( 'key' => $key ) ) ) ) {
+                    wp_schedule_event( time(), $value['cron'], 'mkm_api_cron_' . $key, array( array( 'key' => $key ) ) );
                 }
             }
         }
@@ -118,7 +118,7 @@
             $arr     = array();
             foreach( $options as $item ) {
                 if ( $item['app_token'] == $post['data'] ) continue;
-                $arr[] = $item;
+                $arr[$item['app_token']] = $item;
             }
         }
 
@@ -126,7 +126,7 @@
 
         if ( $up ) {
             mkm_api_delete_app_orders( $appname );
-            wp_clear_scheduled_hook( 'mkm_api_cron_' . $post['data'] );
+            wp_clear_scheduled_hook( 'mkm_api_cron_' . $post['data'], array( array( 'key' => $post['data'] ) ) );
             echo 1;
             wp_die();
         };
@@ -179,10 +179,11 @@
 
         $option[$key]['cron'] = $post['data'];
 
-        $timestamp = wp_next_scheduled( 'mkm_api_cron_' . $key );
-        wp_unschedule_event( $timestamp, 'mkm_api_cron_' . $key );
+        if ( wp_next_scheduled( 'mkm_api_cron_' . $key, array( array( 'key' => $key ) ) ) ) {
+            wp_clear_scheduled_hook( 'mkm_api_cron_' . $key, array( array( 'key' => $key ) ) );
+        }
 
-        wp_reschedule_event( time(), $post['data'], 'mkm_api_cron_' . $key );
+        wp_schedule_event( time(), $post['data'], 'mkm_api_cron_' . $key, array( array( 'key' => $key ) ) );
         update_option( 'mkm_api_options', $option );
     }
 
@@ -221,10 +222,10 @@
         $add_array['cron']         = $option['cron'];
         $add_array['get_data']     = 0;
 
-        $arr[$add_array['app_token']] = $add_array;
+        $arr[$option['app_token']] = $add_array;
 
         if ( !wp_next_scheduled( 'mkm_api_cron_' . $option['app_token'] ) ) {
-            wp_schedule_event( time(), $option['cron'], 'mkm_api_cron_' . $option['app_token'] );
+            wp_schedule_event( time(), $option['cron'], 'mkm_api_cron_' . $option['app_token'], array( array( 'key' => $option['app_token'] ) ) );
         }
 
         return $arr;
@@ -244,7 +245,7 @@
                     <?php if ( is_array( $option ) && count( $option ) > 0 ) {  ?>
                         <tr>
                             <th></th>
-                            <td>
+                            <td class="mkm-api-app-td">
                                 <table class="mkm-api-apps-show">
                                     <?php foreach( $option as $item ){ ?>
                                     <?php $interval = ''; ?>
@@ -300,7 +301,6 @@
 
                 <?php submit_button( __( 'Add App', 'mkm-api' ) ); ?>
                 </form>
-                <?php mkm_api_data(); ?>
             </div>
 
         <?php
@@ -333,23 +333,6 @@
             if (!$wpdb->get_var( "SELECT id_order FROM mkm_api_orders WHERE id_order = $idOrder" ) ){
                 $wpdb->query($wpdb->prepare("INSERT INTO mkm_api_orders (id_order, states, date_bought, date_paid, date_sent, date_received, price, is_insured, city, country, article_count, evaluation_grade, item_description, packaging, article_value, total_value, appname ) VALUES ( %d, %s, %d, %d, %d, %d, %f, %d, %s, %s, %d, %s, %s, %s, %f, %f, %s )", $idOrder, $state, $dateBought, $datePaid, $dateSent, $dateReceived, $price, $isInsured, $city, $country, $articleCount, $evaluationGrade, $itemDescription, $packaging, $articleValue, $totalValue, $appName ) );
             }
-        }
-    }
-
-    function mkm_api_data() {
-
-        $option = get_option( 'mkm_api_options' );
-
-        // if ( isset( $option ) && count( $option ) > 0 ) {
-        //     $data   = mkm_api_auth( "https://api.cardmarket.com/ws/v2.0/account", $option[0]['app_token'], $option[0]['app_secret'], $option[0]['access_token'], $option[0]['token_secret'] );
-        //     dump($data);
-        // }
-
-        global $wpdb;
-        $option = get_option( 'mkm_api_options' );
-        if ( isset( $option ) && count( $option ) > 0 ) {
-            // $data   = mkm_api_auth( "https://api.cardmarket.com/ws/v2.0/orders/1/8/101", $option[0]['app_token'], $option[0]['app_secret'], $option[0]['access_token'], $option[0]['token_secret'] );
-
         }
     }
 
@@ -563,4 +546,22 @@
             return $a['interval'] < $b['interval'] ? -1 : 1;
         });
         return $schedules;
+    }
+
+    $options = get_option( 'mkm_api_options' );
+
+    if ( is_array( $options ) && count( $options ) > 0 ) {
+        
+        foreach ( $options as $options_key => $options_val ) {
+            add_action( 'mkm_api_cron_' . $options_key, 'mkm_cron_setup' );
+        }
+    }
+
+    function mkm_cron_setup( $args ) {
+        $options = get_option( 'mkm_api_options' );
+        $key     = $args['key'];
+        $data    = mkm_api_auth( "https://api.cardmarket.com/ws/v2.0/orders/1/8/1", $options[$key]['app_token'], $options[$key]['app_secret'], $options[$key]['access_token'], $options[$key]['token_secret'] );
+        if ( $data ) {
+            mkm_api_add_data_from_db( $data, $key );
+        }
     }
