@@ -4,8 +4,9 @@
 
     global $wpdb;
 
-    $query = "DROP TABLE IF EXISTS `mkm_api_settings`";
-
+    $query = "DROP TABLE IF EXISTS `mkm_api_orders`";
     $wpdb->query($query);
+
+    delete_option( 'mkm_api_options' );
 
 ?>
