@@ -50,6 +50,7 @@
 }
 
 .mkm-api-progress-bar {
+    overflow: hidden;
     border-radius: 3px;
     width: 50%;
     height: 25px;

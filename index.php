@@ -4,7 +4,7 @@
  *
  * Plugin Name: MKM API
  * Plugin URI:  https://wordpress.org
- * Version:     1.0.0
+ * Version:     1.0.1
  * Description: The plugin receives data MKM API
  * Author:      Dmitriy Kovalev
  * Author URI:  https://www.upwork.com/freelancers/~014907274b0c121eb9
