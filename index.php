@@ -4,13 +4,12 @@
  *
  * Plugin Name: MKM API
  * Plugin URI:  https://wordpress.org
- * Version:     1.0.1
+ * Version:     1.0.2
  * Description: The plugin receives data MKM API
  * Author:      Dmitriy Kovalev
  * Author URI:  https://www.upwork.com/freelancers/~014907274b0c121eb9
  * License:     GPLv2 or later
  * License URI: http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * Text Domain: classic-editor
  * Domain Path: /languages
  *
  */
@@ -55,6 +54,8 @@
                     wp_schedule_event( time(), $value['cron'], 'mkm_api_cron_' . $key, array( array( 'key' => $key ) ) );
                 }
             }
+        } else {
+            update_option( 'mkm_api_options', array() );
         }
     }
 
@@ -99,7 +100,7 @@
             `article_value` VARCHAR(255) NOT NULL,
             `total_value` VARCHAR(255) NOT NULL,
             `appname` VARCHAR(50) NOT NULL,
-            PRIMARY KEY (`id`)) ENGINE = InnoDBDEFAULT CHARSET=utf8;";
+            PRIMARY KEY (`id`)) CHARSET=utf8;";
 
         $wpdb->query($query);
     }
@@ -141,6 +142,7 @@
         $post    = $_POST;
         $arr     = array();
         $key     = $post['key'];
+        $api     = array( 1, 2, 4, 8, 32, 128 );
 
         if( $key == '' ) wp_die( 'end' );
 
@@ -153,10 +155,10 @@
             $arr['count'] = $post['count'];
         }
 
-        $data = mkm_api_auth( "https://api.cardmarket.com/ws/v2.0/orders/1/8/" . $post['data'], $option[$key]['app_token'], $option[$key]['app_secret'], $option[$key]['access_token'], $option[$key]['token_secret'] );
-
-        if ( count ( $data->order ) > 0 ) {
-            mkm_api_add_data_from_db( $data, $key );
+        $data = mkm_api_auth( "https://api.cardmarket.com/ws/v2.0/orders/1/1/" . $post['data'], $option[$key]['app_token'], $option[$key]['app_secret'], $option[$key]['access_token'], $option[$key]['token_secret'] );
+        var_dump($data->order);die;
+        if ( count ( esc_sql( $data->order ) ) > 0 ) {
+            //mkm_api_add_data_from_db( $data, $key );
             $arr['data'] = $post['data'] + 100;
             $arr['key']  = $key;
             echo json_encode( $arr );
@@ -480,7 +482,7 @@
             * @var $decoded \SimpleXMLElement|\stdClass Converted Object (XML|JSON)
             */
 
-        // $decoded            = json_decode($content);
+        //$decoded            = json_decode($content);
 
         $decoded            = simplexml_load_string($content);
 
@@ -524,7 +526,7 @@
                 $html .= '<td><div class="mkm-api-td-left">' . __( 'City/Country', 'mkm-api' ) . '</div><div class="mkm-api-td-right">' . $res_val->city . ' ' . $res_val->country . '</div>';
                 $html .= '<div class="mkm-api-td-left">' . __( 'Article count', 'mkm-api' ) . '</div><div class="mkm-api-td-right">' . $res_val->article_count . '</div></td>';
 
-                $html .= '<td><div class="mkm-api-td-left">' . __( 'Article value', 'mkm-api' ) . '</div><div class="mkm-api-td-right">' . number_format( $res_val->article_count, 2, '.', '' ) . '</div>';
+                $html .= '<td><div class="mkm-api-td-left">' . __( 'Article value', 'mkm-api' ) . '</div><div class="mkm-api-td-right">' . number_format( $res_val->article_value   , 2, '.', '' ) . '</div>';
                 $html .= '<div class="mkm-api-td-left">' . __( 'Total value', 'mkm-api' ) . '</div><div class="mkm-api-td-right">' . number_format( $res_val->total_value, 2, '.', '' ) . '</div></td>';
 
                 $html .= '<td><div class="mkm-api-td-left">' . __( 'Is insured', 'mkm-api' ) . '</div><div class="mkm-api-td-right">' . $res_val->is_insured . '</div>';
@@ -640,7 +642,7 @@
                     </td>
                     <td>
                         <div class="mkm-api-td-left"><?php _e( 'Article value', 'mkm-api' ); ?></div>
-                        <div class="mkm-api-td-right"><?php echo number_format( $value->article_count, 2, '.', '' ); ?></div>
+                        <div class="mkm-api-td-right"><?php echo number_format( $value->article_value, 2, '.', '' ); ?></div>
                         <div class="mkm-api-td-left"><?php _e( 'Total value', 'mkm-api' ); ?></div>
                         <div class="mkm-api-td-right"><?php echo number_format( $value->total_value, 2, '.', '' ); ?></div>
                     </td>
@@ -709,3 +711,4 @@
             mkm_api_add_data_from_db( $data, $key );
         }
     }
+
