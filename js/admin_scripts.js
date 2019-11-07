@@ -1,5 +1,9 @@
 jQuery(document).ready(function($){
 
+    let AppMkm = {
+        proc: 0
+    }
+
     $('#mkm-api-show-more').html($('.mkm-api-filter-count').data('count') - 30);
 
     if($('.mkm-api-filter-count').data('count') <= 30 ){
@@ -135,10 +139,10 @@ jQuery(document).ready(function($){
     $(document).on('click', '.mkm-api-get-all-data', function(e){
         e.preventDefault();
         let key = $(this).data('key');
-        mkm_api_get_ajax_data(1, 1, key);
+        mkm_api_get_ajax_data(1, 1, key, 0);
     });
 
-    function mkm_api_get_ajax_data(data, count, key ){
+    function mkm_api_get_ajax_data(data, count, key, state ){
         $.ajax({
             type: 'POST',
             url: ajaxurl,
@@ -146,16 +150,20 @@ jQuery(document).ready(function($){
                 data: data,
                 count: count,
                 key: key,
+                state: state,
                 action: 'mkm_api_ajax_data',
             },
             beforeSend: function(){
                 $('#content-for-modal').css({'display':'flex'});
                 if(count == 1){
-                    $('#content-for-modal .mkm-api-progress').css({'width': 0});
-                    $('#content-for-modal .proc').html('0%');
+                    $('#content-for-modal .mkm-api-progress').css({'width': AppMkm.proc});
+                    $('#content-for-modal .proc').html(AppMkm.proc + '%');
                 } else {
-                    $('#content-for-modal .mkm-api-progress').css({'width': data/(count/100) + '%'});
-                    $('#content-for-modal .proc').html(Math.round(data/(count/100)) + '%');
+                    if (state == 3) {
+                        AppMkm.proc = ( Math.round(data/(count/100)) >= 100 ) ? 100 : Math.round(data/(count/100));
+                        $('#content-for-modal .mkm-api-progress').css({'width': AppMkm.proc + '%'});
+                        $('#content-for-modal .proc').html(AppMkm.proc + '%');
+                    }
                 }
             },
             success: function(result){
@@ -163,7 +171,7 @@ jQuery(document).ready(function($){
                 if (result && result != 'end'){
                     let res = JSON.parse(result);
                     setTimeout(function(){
-                        mkm_api_get_ajax_data(res.data, res.count, res.key);
+                        mkm_api_get_ajax_data(res.data, res.count, res.key, res.state);
                     }, 2000);
                 } else {
                     window.location.reload()

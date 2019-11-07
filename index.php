@@ -35,6 +35,12 @@
 		}
     }
 
+    // $s = get_option( 'cron' );
+    // foreach ($s as $key => $value) {
+    //     dump(date("Y-d-m H:i:s", $key));
+    //     dump($value);
+    // }
+
     function mkm_api_deactivation() {
         $options = get_option( 'mkm_api_options' );
         if ( is_array( $options ) && count( $options ) > 0 ) {
@@ -85,10 +91,10 @@
             `id` INT(11) unsigned NOT NULL AUTO_INCREMENT,
             `id_order` INT(10) NOT NULL,
             `states` VARCHAR(50) NOT NULL,
-            `date_bought` INT(11) NOT NULL,
-            `date_paid` INT(11) NOT NULL,
-            `date_sent` INT(11) NOT NULL,
-            `date_received` INT(11) NOT NULL,
+            `date_bought` DATETIME,
+            `date_paid` DATETIME,
+            `date_sent` DATETIME,
+            `date_received` DATETIME,
             `price` VARCHAR(50) NOT NULL,
             `is_insured` BOOLEAN NOT NULL,
             `city` VARCHAR(255) NOT NULL,
@@ -143,8 +149,10 @@
         $arr     = array();
         $key     = $post['key'];
         $api     = array( 1, 2, 4, 8, 32, 128 );
+        $state   = 0;
 
         if( $key == '' ) wp_die( 'end' );
+        if( $post['state'] > count( $api ) ) wp_die( 'end' );
 
         $option = get_option( 'mkm_api_options' );
 
@@ -155,18 +163,27 @@
             $arr['count'] = $post['count'];
         }
 
-        $data = mkm_api_auth( "https://api.cardmarket.com/ws/v2.0/orders/1/1/" . $post['data'], $option[$key]['app_token'], $option[$key]['app_secret'], $option[$key]['access_token'], $option[$key]['token_secret'] );
-        var_dump($data->order);die;
-        if ( count ( esc_sql( $data->order ) ) > 0 ) {
-            //mkm_api_add_data_from_db( $data, $key );
+        $data = mkm_api_auth( "https://api.cardmarket.com/ws/v2.0/orders/1/" . $api[$post['state']] . "/" . $post['data'], $option[$key]['app_token'], $option[$key]['app_secret'], $option[$key]['access_token'], $option[$key]['token_secret'] );
+
+        if ( isset( $data->order[0]->idOrder ) && $data->order[0]->idOrder != 0 ) {
+            mkm_api_add_data_from_db( $data, $key );
             $arr['data'] = $post['data'] + 100;
             $arr['key']  = $key;
+            $arr['state']  = $post['state'];
             echo json_encode( $arr );
         } else {
-            $option[$key]['get_data'] = 1;
-            update_option( 'mkm_api_options', $option );
-            echo 'end';
-            die;
+            if ( $post['state'] <= count( $api ) - 1) {
+                mkm_api_add_data_from_db( $data, $key );
+                $arr['data'] = 1;
+                $arr['key']  = $key;
+                $arr['state']  = $post['state'] + 1;
+                echo json_encode( $arr );
+            } else {
+                $option[$key]['get_data'] = 1;
+                update_option( 'mkm_api_options', $option );
+                echo 'end';
+                die;
+            }
         }
 
         die;
@@ -320,10 +337,10 @@
         foreach ( $data->order as $value ) {
             $idOrder         = esc_sql( (int)$value->idOrder );
             $state           = esc_sql( $value->state->state );
-            $dateBought      = strtotime( esc_sql( $value->state->dateBought ) );
-            $datePaid        = strtotime( esc_sql( $value->state->datePaid ) );
-            $dateSent        = strtotime( esc_sql( $value->state->dateSent ) );
-            $dateReceived    = strtotime( esc_sql( $value->state->dateReceived ) );
+            $dateBought      = date( "Y-m-d H:i:s", strtotime( esc_sql( $value->state->dateBought ) ) );
+            $datePaid        = date( "Y-m-d H:i:s", strtotime( esc_sql( $value->state->datePaid ) ) );
+            $dateSent        = date( "Y-m-d H:i:s", strtotime( esc_sql( $value->state->dateSent ) ) );
+            $dateReceived    = date( "Y-m-d H:i:s", strtotime( esc_sql( $value->state->dateReceived ) ) );
             $price           = esc_sql( $value->shippingMethod->price );
             $isInsured       = (int)esc_sql( $value->shippingMethod->isInsured );
             $city            = esc_sql( $value->shippingAddress->city );
@@ -338,7 +355,7 @@
 
 
             if (!$wpdb->get_var( "SELECT id_order FROM mkm_api_orders WHERE id_order = $idOrder" ) ){
-                $wpdb->query($wpdb->prepare("INSERT INTO mkm_api_orders (id_order, states, date_bought, date_paid, date_sent, date_received, price, is_insured, city, country, article_count, evaluation_grade, item_description, packaging, article_value, total_value, appname ) VALUES ( %d, %s, %d, %d, %d, %d, %f, %d, %s, %s, %d, %s, %s, %s, %f, %f, %s )", $idOrder, $state, $dateBought, $datePaid, $dateSent, $dateReceived, $price, $isInsured, $city, $country, $articleCount, $evaluationGrade, $itemDescription, $packaging, $articleValue, $totalValue, $appName ) );
+                $wpdb->query($wpdb->prepare("INSERT INTO mkm_api_orders (id_order, states, date_bought, date_paid, date_sent, date_received, price, is_insured, city, country, article_count, evaluation_grade, item_description, packaging, article_value, total_value, appname ) VALUES ( %d, %s, %s, %s, %s, %s, %f, %d, %s, %s, %d, %s, %s, %s, %f, %f, %s )", $idOrder, $state, $dateBought, $datePaid, $dateSent, $dateReceived, $price, $isInsured, $city, $country, $articleCount, $evaluationGrade, $itemDescription, $packaging, $articleValue, $totalValue, $appName ) );
             }
         }
     }
@@ -519,7 +536,7 @@
 
                 $html .= '<td><div class="mkm-api-td-left">' . __( 'Date Paid', 'mkm-api' ) . '</div><div class="mkm-api-td-right">' . date_i18n( "d M y, H:i:s", $res_val->date_paid ) . '</div>';
                 $html .= '<div class="mkm-api-td-left">' . __( 'Date sent', 'mkm-api' ) . '</div><div class="mkm-api-td-right">' . date_i18n( "d M y, H:i:s", $res_val->date_sent ) . '</div></td>';
-    
+
                 $html .= '<td><div class="mkm-api-td-left">' . __( 'State', 'mkm-api' ) . '</div><div class="mkm-api-td-right">' . $res_val->states. '</div>';
                 $html .= '<div class="mkm-api-td-left">' . __( 'Price', 'mkm-api' ) . '</div><div class="mkm-api-td-right">' . number_format( $res_val->price, 2, '.', '' ) . '</div></td>';
 
@@ -697,7 +714,7 @@
     $options = get_option( 'mkm_api_options' );
 
     if ( is_array( $options ) && count( $options ) > 0 ) {
-        
+
         foreach ( $options as $options_key => $options_val ) {
             add_action( 'mkm_api_cron_' . $options_key, 'mkm_cron_setup' );
         }
@@ -708,7 +725,19 @@
         $key     = $args['key'];
         $data    = mkm_api_auth( "https://api.cardmarket.com/ws/v2.0/orders/1/8/1", $options[$key]['app_token'], $options[$key]['app_secret'], $options[$key]['access_token'], $options[$key]['token_secret'] );
         if ( $data ) {
-            mkm_api_add_data_from_db( $data, $key );
+            update_option( '_aaa_' . $args['key'],'1');
+            //mkm_api_add_data_from_db( $data, $key );
         }
     }
+
+    add_action('init', function(){
+        $data = mkm_api_auth( "https://api.cardmarket.com/ws/v2.0/orders/1/8/1", "HBi1qvutoSU5jmwh", "uT0V26MYB7AeZOyzIrqChmtI3LmhgqXo", "875XOAjMorDKmYxHDzHfV9Bc4oTCindT", "mkSJ1Q0DPPNmwQ6fUYZjKQcbfd1X711z" );
+        var_dump($data);
+        if(isset($data->order[0]->idOrder)){
+            dump(1);
+        }else{
+            dump(2);
+        }
+        // dump($data);
+    });
 
