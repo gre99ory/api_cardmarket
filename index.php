@@ -721,23 +721,43 @@
     }
 
     function mkm_cron_setup( $args ) {
+
+        global $wpdb;
         $options = get_option( 'mkm_api_options' );
         $key     = $args['key'];
-        $data    = mkm_api_auth( "https://api.cardmarket.com/ws/v2.0/orders/1/8/1", $options[$key]['app_token'], $options[$key]['app_secret'], $options[$key]['access_token'], $options[$key]['token_secret'] );
-        if ( $data ) {
-            update_option( '_aaa_' . $args['key'],'1');
-            //mkm_api_add_data_from_db( $data, $key );
-        }
+        $flag    = true;
+        $count   = 1;
+
+
+        // while ( $flag ) {
+        //     $data    = mkm_api_auth( "https://api.cardmarket.com/ws/v2.0/orders/1/1/" . $count, $options[$key]['app_token'], $options[$key]['app_secret'], $options[$key]['access_token'], $options[$key]['token_secret'] );
+        //     if ( isset ( $data->order[0]->idOrder ) &&  $data->order[0]->idOrder != 0 ) {
+        //         update_option( '__aaa', date("H:m:s", time()));
+        //         mkm_api_add_data_from_db( $data, $key );
+        //         $count = $count + 100;
+        //     } else {
+        //         $flag = false;
+        //     }
+        // }
+
+
+        
     }
 
-    add_action('init', function(){
-        $data = mkm_api_auth( "https://api.cardmarket.com/ws/v2.0/orders/1/8/1", "HBi1qvutoSU5jmwh", "uT0V26MYB7AeZOyzIrqChmtI3LmhgqXo", "875XOAjMorDKmYxHDzHfV9Bc4oTCindT", "mkSJ1Q0DPPNmwQ6fUYZjKQcbfd1X711z" );
-        var_dump($data);
-        if(isset($data->order[0]->idOrder)){
-            dump(1);
-        }else{
-            dump(2);
-        }
-        // dump($data);
-    });
+    // add_action('init', function(){
+    //     $data = mkm_api_auth( "https://api.cardmarket.com/ws/v2.0/orders/1/8/1", "HBi1qvutoSU5jmwh", "uT0V26MYB7AeZOyzIrqChmtI3LmhgqXo", "875XOAjMorDKmYxHDzHfV9Bc4oTCindT", "mkSJ1Q0DPPNmwQ6fUYZjKQcbfd1X711z" );
+    //     if(isset($data->order[0]->idOrder)){
+    //         dump(1);
+    //     }else{
+    //         dump(2);
+    //     }
+    //     dump($data);
+    // });
+
+    // for($a = 1; $a < 30; $a++){
+    //     sleep(2);
+    //     update_option('__a' . $a, date("H:m:s"), time());
+    // }
+
+
 
