@@ -27,6 +27,17 @@
     add_action( 'admin_print_footer_scripts-toplevel_page_mkm-api-options', 'mkm_api_modal_to_footer' );
     add_filter( 'cron_schedules', 'mkm_api_add_schedules', 20 );
 
+    $mkmApiBaseUrl = 'https://api.cardmarket.com/ws/v2.0/orders/1/';
+    $mkmApiStates  = array(
+        'evaluated' => 'Evaluated',
+        'bought'    => 'Bought',
+        'paid'      => 'Paid',
+        'sent'      => 'Sent',
+        'received'  => 'Received',
+        'lost'      => 'Lost',
+        'cancelled' => 'Cancelled'
+    );
+
     if ( !function_exists( 'dump' ) ) {
 		function dump( $var ) {
 			echo '<pre style="color: #c3c3c3; background-color: #282923;">';
@@ -35,11 +46,11 @@
 		}
     }
 
-    // $s = get_option( 'cron' );
-    // foreach ($s as $key => $value) {
-    //     dump(date("Y-d-m H:i:s", $key));
-    //     dump($value);
-    // }
+    function mkm_api_null_date( $date ) {
+        if ( $date == '1970-01-01 00:00:00' ) return '---- -- --';
+
+        return $date;
+    }
 
     function mkm_api_deactivation() {
         $options = get_option( 'mkm_api_options' );
@@ -163,7 +174,7 @@
             $arr['count'] = $post['count'];
         }
 
-        $data = mkm_api_auth( "https://api.cardmarket.com/ws/v2.0/orders/1/" . $api[$post['state']] . "/" . $post['data'], $option[$key]['app_token'], $option[$key]['app_secret'], $option[$key]['access_token'], $option[$key]['token_secret'] );
+        $data = mkm_api_auth( $mkmApiBaseUrl . $api[$post['state']] . "/" . $post['data'], $option[$key]['app_token'], $option[$key]['app_secret'], $option[$key]['access_token'], $option[$key]['token_secret'] );
 
         if ( isset( $data->order[0]->idOrder ) && $data->order[0]->idOrder != 0 ) {
             mkm_api_add_data_from_db( $data, $key );
@@ -237,6 +248,19 @@
         if ( $option['access_token'] == '' ) return $arr;
         if ( $option['token_secret'] == '' ) return $arr;
         if ( !array_key_exists( $option['cron'], $schedules ) ) return $arr;
+        if ( array_key_exists( $option['app_token'], $arr ) ) {
+            add_settings_error( 'mkm_api_options', 'mkm_api_options', __( 'This App Token is already in use', 'mkm-api' ), 'error' );
+            return $arr;
+        }
+        
+        if ( count( $arr ) > 0 ) {
+            foreach ( $arr as $app_elem ) {
+                if ( $app_elem['name'] == $option['name'] ) {
+                    add_settings_error( 'mkm_api_options', 'mkm_api_options', __( 'This name already exists', 'mkm-api' ), 'error' );
+                    return $arr;
+                }
+            }
+        }
 
         $add_array['token_secret'] = $option['token_secret'];
         $add_array['access_token'] = $option['access_token'];
@@ -252,6 +276,8 @@
             wp_schedule_event( time(), $option['cron'], 'mkm_api_cron_' . $option['app_token'], array( array( 'key' => $option['app_token'] ) ) );
         }
 
+        add_settings_error( 'mkm_api_options', 'mkm_api_options', __( 'New application added successfully', 'mkm-api' ), 'updated' );
+
         return $arr;
     }
 
@@ -263,6 +289,7 @@
 
             <div class="wrap">
                 <h2><?php _e( 'MKM API Settings', 'mkm-api' ); ?></h2>
+                <?php settings_errors(); ?>
                 <form action="options.php" method="post">
                     <?php settings_fields( 'mkm_api_group_options' ); ?>
                     <table class="form-table">
@@ -336,6 +363,7 @@
 
         foreach ( $data->order as $value ) {
             $idOrder         = esc_sql( (int)$value->idOrder );
+            if ( !isset( $idOrder ) || $idOrder == 0 ) continue;
             $state           = esc_sql( $value->state->state );
             $dateBought      = date( "Y-m-d H:i:s", strtotime( esc_sql( $value->state->dateBought ) ) );
             $datePaid        = date( "Y-m-d H:i:s", strtotime( esc_sql( $value->state->datePaid ) ) );
@@ -354,8 +382,31 @@
             $appName         = esc_sql( $option[$key]['name'] );
 
 
-            if (!$wpdb->get_var( "SELECT id_order FROM mkm_api_orders WHERE id_order = $idOrder" ) ){
-                $wpdb->query($wpdb->prepare("INSERT INTO mkm_api_orders (id_order, states, date_bought, date_paid, date_sent, date_received, price, is_insured, city, country, article_count, evaluation_grade, item_description, packaging, article_value, total_value, appname ) VALUES ( %d, %s, %s, %s, %s, %s, %f, %d, %s, %s, %d, %s, %s, %s, %f, %f, %s )", $idOrder, $state, $dateBought, $datePaid, $dateSent, $dateReceived, $price, $isInsured, $city, $country, $articleCount, $evaluationGrade, $itemDescription, $packaging, $articleValue, $totalValue, $appName ) );
+            if ( !$wpdb->get_var( "SELECT id_order FROM mkm_api_orders WHERE id_order = $idOrder" ) ) {
+                $wpdb->query( $wpdb->prepare( "INSERT INTO mkm_api_orders (id_order, states, date_bought, date_paid, date_sent, date_received, price, is_insured, city, country, article_count, evaluation_grade, item_description, packaging, article_value, total_value, appname ) VALUES ( %d, %s, %s, %s, %s, %s, %f, %d, %s, %s, %d, %s, %s, %s, %f, %f, %s )", $idOrder, $state, $dateBought, $datePaid, $dateSent, $dateReceived, $price, $isInsured, $city, $country, $articleCount, $evaluationGrade, $itemDescription, $packaging, $articleValue, $totalValue, $appName ) );
+            } else {
+                $wpdb->update( 'mkm_api_orders',
+                    array(
+                        'states'           => $state,
+                        'date_bought'      => $dateBought,
+                        'date_paid'        => $datePaid,
+                        'date_sent'        => $dateSent,
+                        'date_received'    => $dateReceived,
+                        'price'            => $price,
+                        'is_insured'       => $isInsured,
+                        'city'             => $city,
+                        'country'          => $country,
+                        'article_count'    => $articleCount,
+                        'evaluation_grade' => $evaluationGrade,
+                        'item_description' => $itemDescription,
+                        'packaging'        => $packaging,
+                        'article_value'    => $articleValue,
+                        'total_value'      => $totalValue,
+                    ),
+                    array( 'id_order' => $idOrder ),
+                    array( '%s', '%s', '%s', '%s', '%s', '%f', '%d', '%s', '%s', '%d', '%s', '%s', '%s', '%f', '%f' ),
+                    array( '%d' )
+                );
             }
         }
     }
@@ -509,21 +560,18 @@
     function mkm_api_ajax_get_orders(){
         $post = $_POST;
 
-        if ( $post['app'] == '' || $post['from'] == '' || $post['to'] == '' ) {
-            echo 'no_data';
-            die();
-        }
-
-        if ( $post['from'] > $post['to'] ) {
+        if ( $post['app'] == '' ) {
             echo 'no_data';
             die();
         }
 
         $start = ( !isset( $post['start'] ) || $post['start'] == 0 || $post['start'] == '' ) ? 0 : $post['start'];
+        $from  = $post['from'] != '' ? $post['from'] . ' 00:00:00' : '1970-01-01 00:00:00';
+        $to    = $post['to'] != '' ? $post['to'] . ' 23:59:59' : date( 'Y-m-d H:i:s', time() );
 
         $html = '';
 
-        $data = mkm_api_get_orders( $start, $post['app'], $post['from']/1000, $post['to']/1000 );
+        $data = mkm_api_get_orders( $start, $post['app'], $from, $to, $post['state'] );
         if ( $data['count'] > 0 ) {
             foreach ( $data['result'] as $res_val ) {
                 $html .= '<tr class="mkm-api-list-order-row">';
@@ -531,11 +579,11 @@
                 $html .= '<td><div class="mkm-api-td-left">' . __( 'ID Order', 'mkm-api' ) . '</div><div class="mkm-api-td-right">' . $res_val->id_order. '</div>';
                 $html .= '<div class="mkm-api-td-left">' . __( 'App name', 'mkm-api' ) . '</div><div class="mkm-api-td-right">' . $res_val->appname . '</div></td>';
 
-                $html .= '<td><div class="mkm-api-td-left">' . __( 'Date bought', 'mkm-api' ) . '</div><div class="mkm-api-td-right">' . date_i18n( "d M y, H:i:s", $res_val->date_bought ) . '</div>';
-                $html .= '<div class="mkm-api-td-left">' . __( 'Date received', 'mkm-api' ) . '</div><div class="mkm-api-td-right">' . date_i18n( "d M y, H:i:s", $res_val->date_received ) . '</div></td>';
+                $html .= '<td><div class="mkm-api-td-left">' . __( 'Date bought', 'mkm-api' ) . '</div><div class="mkm-api-td-right">' . mkm_api_null_date( $res_val->date_bought ) . '</div>';
+                $html .= '<div class="mkm-api-td-left">' . __( 'Date received', 'mkm-api' ) . '</div><div class="mkm-api-td-right">' . mkm_api_null_date( $res_val->date_received ) . '</div></td>';
 
-                $html .= '<td><div class="mkm-api-td-left">' . __( 'Date Paid', 'mkm-api' ) . '</div><div class="mkm-api-td-right">' . date_i18n( "d M y, H:i:s", $res_val->date_paid ) . '</div>';
-                $html .= '<div class="mkm-api-td-left">' . __( 'Date sent', 'mkm-api' ) . '</div><div class="mkm-api-td-right">' . date_i18n( "d M y, H:i:s", $res_val->date_sent ) . '</div></td>';
+                $html .= '<td><div class="mkm-api-td-left">' . __( 'Date Paid', 'mkm-api' ) . '</div><div class="mkm-api-td-right">' . mkm_api_null_date( $res_val->date_paid ) . '</div>';
+                $html .= '<div class="mkm-api-td-left">' . __( 'Date sent', 'mkm-api' ) . '</div><div class="mkm-api-td-right">' . mkm_api_null_date( $res_val->date_sent ) . '</div></td>';
 
                 $html .= '<td><div class="mkm-api-td-left">' . __( 'State', 'mkm-api' ) . '</div><div class="mkm-api-td-right">' . $res_val->states. '</div>';
                 $html .= '<div class="mkm-api-td-left">' . __( 'Price', 'mkm-api' ) . '</div><div class="mkm-api-td-right">' . number_format( $res_val->price, 2, '.', '' ) . '</div></td>';
@@ -563,17 +611,19 @@
         die();
     }
 
-    function mkm_api_get_orders( $start = 0, $apps = 'all', $from = 0, $to = 0 ) {
+    function mkm_api_get_orders( $start = 0, $apps = 'all', $from = '1970-01-01 00:00:00', $to = 0, $state = 'evaluated' ) {
+        global $mkmApiStates;
+        global $wpdb;
         $perpage = 30;
         $data    = array();
-        $where   = 'WHERE';
-        $to = $to > 0 ? $to : time();
-        global $wpdb;
+        $where   = "WHERE states = '$state' AND";
+        $to      = $to == 0 ? date( 'Y-m-d H:i:s', time() ) : $to;
+        $state   = array_key_exists( $state, $mkmApiStates ) ? $state : 'evaluated';
         if ( $apps != 'all' ) {
             $where .= " appname = '$apps' AND";
         }
-        $data['count']  = $wpdb->get_var( "SELECT count(*) FROM mkm_api_orders $where date_bought BETWEEN $from AND $to" );
-        $data['result'] = $wpdb->get_results( "SELECT * FROM mkm_api_orders $where date_bought BETWEEN $from AND $to ORDER BY date_bought DESC LIMIT $start, $perpage" );
+        $data['count']  = $wpdb->get_var( "SELECT count(*) FROM mkm_api_orders $where date_bought BETWEEN '$from' AND '$to'" );
+        $data['result'] = $wpdb->get_results( "SELECT * FROM mkm_api_orders $where date_bought BETWEEN '$from' AND '$to' ORDER BY date_bought DESC LIMIT $start, $perpage" );
         return $data;
     }
 
@@ -582,6 +632,7 @@
         $result  = mkm_api_get_orders();
         $data    = $result['result'];
         $options = get_option( 'mkm_api_options' );
+        global $mkmApiStates;
 
         ?>
             <div class="wrap mkm-api-wrap">
@@ -600,6 +651,16 @@
                         <?php } ?>
                     </select>
                 </div>
+
+                <div class="mkm-api-filter-select-state">
+                    <label for="mkm-api-filter-select-state-id"><?php _e( 'Filter State', 'mkm-api' ); ?></label>
+                    <select id="mkm-api-filter-select-state-id">
+                        <?php foreach( $mkmApiStates as $state_key => $state_val ) { ?>
+                            <option value="<?php echo $state_key; ?>"><?php echo $state_val; ?></option>
+                        <?php } ?>
+                    </select>
+                </div>
+
                 <div class="mkm-api-filter-date">
                     <div class="mkm-api-filter-date-item">
                         <?php _e( 'Filter Date: ', 'mkm-api' ); ?>
@@ -635,15 +696,15 @@
                     </td>
                     <td>
                         <div class="mkm-api-td-left"><?php _e( 'Date bought', 'mkm-api' ); ?></div>
-                        <div class="mkm-api-td-right"><?php echo date_i18n( "d M y, H:i:s", $value->date_bought ); ?></div>
+                        <div class="mkm-api-td-right"><?php echo mkm_api_null_date( $value->date_bought ); ?></div>
                         <div class="mkm-api-td-left"><?php _e( 'Date received', 'mkm-api' ); ?></div>
-                        <div class="mkm-api-td-right"><?php echo date_i18n( "d M y, H:i:s", $value->date_received ); ?></div>
+                        <div class="mkm-api-td-right"><?php echo mkm_api_null_date( $value->date_received ); ?></div>
                     </td>
                     <td>
                         <div class="mkm-api-td-left"><?php _e( 'Date paid', 'mkm-api' ); ?></div>
-                        <div class="mkm-api-td-right"><?php echo date_i18n( "d M y, H:i:s", $value->date_paid ); ?></div>
+                        <div class="mkm-api-td-right"><?php echo mkm_api_null_date( $value->date_paid ); ?></div>
                         <div class="mkm-api-td-left"><?php _e( 'Date sent', 'mkm-api' ); ?></div>
-                        <div class="mkm-api-td-right"><?php echo date_i18n( "d M y, H:i:s", $value->date_sent ); ?></div>
+                        <div class="mkm-api-td-right"><?php echo mkm_api_null_date( $value->date_sent ); ?></div>
                     </td>
                     <td>
                         <div class="mkm-api-td-left"><?php _e( 'State', 'mkm-api' ); ?></div>
@@ -727,37 +788,47 @@
         $key     = $args['key'];
         $flag    = true;
         $count   = 1;
+        $state   = 0;
+        $api     = array( 1, 2, 4, 8 );
 
+        while ( $flag ) {
+            $data    = mkm_api_auth( $mkmApiBaseUrl . $api[$state] . "/" . $count, $options[$key]['app_token'], $options[$key]['app_secret'], $options[$key]['access_token'], $options[$key]['token_secret'] );
+            if ( isset ( $data->order[0]->idOrder ) &&  $data->order[0]->idOrder != 0 ) {
+                sleep( 1 );
+                update_option( '__aaa', date("H:i:s", time()));
+                mkm_api_add_data_from_db( $data, $key );
+                $count = $count + 100;
+                if ( $count >= 501 ) $flag = false;
+            } else {
+                if ( $state >= 4 ) {
+                    $flag = false;
+                } else {
+                    $count = 1;
+                    $state++;
+                }
+            }
+        }
 
-        // while ( $flag ) {
-        //     $data    = mkm_api_auth( "https://api.cardmarket.com/ws/v2.0/orders/1/1/" . $count, $options[$key]['app_token'], $options[$key]['app_secret'], $options[$key]['access_token'], $options[$key]['token_secret'] );
-        //     if ( isset ( $data->order[0]->idOrder ) &&  $data->order[0]->idOrder != 0 ) {
-        //         update_option( '__aaa', date("H:m:s", time()));
-        //         mkm_api_add_data_from_db( $data, $key );
-        //         $count = $count + 100;
-        //     } else {
-        //         $flag = false;
-        //     }
-        // }
-
-
-        
     }
 
     // add_action('init', function(){
-    //     $data = mkm_api_auth( "https://api.cardmarket.com/ws/v2.0/orders/1/8/1", "HBi1qvutoSU5jmwh", "uT0V26MYB7AeZOyzIrqChmtI3LmhgqXo", "875XOAjMorDKmYxHDzHfV9Bc4oTCindT", "mkSJ1Q0DPPNmwQ6fUYZjKQcbfd1X711z" );
+    //     global $wpdb;
+    //     $options = get_option( 'mkm_api_options' );
+    //     $data = mkm_api_auth( "https://api.cardmarket.com/ws/v2.0/orders/1/1/1", "HBi1qvutoSU5jmwh", "uT0V26MYB7AeZOyzIrqChmtI3LmhgqXo", "875XOAjMorDKmYxHDzHfV9Bc4oTCindT", "mkSJ1Q0DPPNmwQ6fUYZjKQcbfd1X711z" );
     //     if(isset($data->order[0]->idOrder)){
     //         dump(1);
     //     }else{
     //         dump(2);
     //     }
-    //     dump($data);
+
+    //     $appname = $options['HBi1qvutoSU5jmwh']['name'];
+    //     dump($appname);
+    //     $query = "SELECT id_order FROM mkm_api_orders WHERE appname = '$appname' AND states = 'bought' OR states = 'paid' OR states = 'sent' OR states= 'received'";
+
+    //     $result = $wpdb->get_results($query);
+    //     dump($result);
     // });
 
-    // for($a = 1; $a < 30; $a++){
-    //     sleep(2);
-    //     update_option('__a' . $a, date("H:m:s"), time());
-    // }
 
 
 

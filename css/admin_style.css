@@ -262,7 +262,7 @@
         justify-content: space-between;
     }
 
-    .mkm-api-filter-select-app {
+    .mkm-api-filter-select-app, .mkm-api-filter-select-state {
         display: flex;
         align-items: center;
         margin: 0 0 5px 0;

@@ -1,7 +1,11 @@
 jQuery(document).ready(function($){
 
     let AppMkm = {
-        proc: 0
+        proc: 1,
+        state: 'evaluated',
+        dateFrom: '',
+        dateTo: '',
+        selectApp: '',
     }
 
     $('#mkm-api-show-more').html($('.mkm-api-filter-count').data('count') - 30);
@@ -29,27 +33,26 @@ jQuery(document).ready(function($){
         get_list_data_orders();
     });
 
+    $('#mkm-api-filter-select-state-id').on('change', function(){
+        get_list_data_orders();
+    });
+
     function get_list_data_orders(){
         $('.mkm-api-show-more-list-orders button').show();
         $('.mkm-api-show-more-list-orders button').data('start', 30);
-        let now = new Date;
-        let from_elem = $('#mkm-api-filter-date-from').attr('value');
-        let to_elem = $('#mkm-api-filter-date-to').attr('value');
-        let app = $('#mkm-api-filter-select-app-id').attr('value');
-        let from = from_elem != '' ? new Date (from_elem) : new Date ('1970-01-01');
-        let to = to_elem != '' ? new Date (to_elem) : now;
-        from.setUTCHours(0, 0, 0, 900);
-        to.setUTCHours(23, 59, 59, 900)
-        from_s = from.getTime();
-        to_s = to.getTime();
+        let from  = $('#mkm-api-filter-date-from').attr('value');
+        let to    = $('#mkm-api-filter-date-to').attr('value');
+        let app   = $('#mkm-api-filter-select-app-id').attr('value');
+        let state = $('#mkm-api-filter-select-state-id').attr('value');
         $.ajax({
             type: 'POST',
             url: ajaxurl,
             data: {
                 action:'mkm_api_ajax_get_orders',
                 app : app,
-                from: from_s,
-                to: to_s
+                from: from,
+                to: to,
+                state: state
             },
             beforeSend: function(){
                 $('.mkm-api-orders-table tbody').css({'opacity': 0})
@@ -76,25 +79,20 @@ jQuery(document).ready(function($){
 
     $(document).on('click', '.mkm-api-show-more-list-orders button', function(e){
         e.preventDefault();
-        let now = new Date;
-        let from_elem = $('#mkm-api-filter-date-from').attr('value');
-        let to_elem = $('#mkm-api-filter-date-to').attr('value');
-        let app = $('#mkm-api-filter-select-app-id').attr('value');
-        let from = from_elem != '' ? new Date (from_elem) : new Date ('1970-01-01');
-        let to = to_elem != '' ? new Date (to_elem) : now;
-        from.setUTCHours(0, 0, 0, 900);
-        to.setUTCHours(23, 59, 59, 900)
-        from_s = from.getTime();
-        to_s = to.getTime();
+        let from  = $('#mkm-api-filter-date-from').attr('value');
+        let to    = $('#mkm-api-filter-date-to').attr('value');
+        let app   = $('#mkm-api-filter-select-app-id').attr('value');
+        let state = $('#mkm-api-filter-select-state-id').attr('value');
         $.ajax({
             type: 'POST',
             url: ajaxurl,
             data: {
                 action:'mkm_api_ajax_get_orders',
                 start: $(this).data('start'),
-                from: from_s,
-                to: to_s,
+                from: from,
+                to: to,
                 app: app,
+                state: state,
             },
             beforeSend: function(){
 
