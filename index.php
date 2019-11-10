@@ -225,7 +225,10 @@
     }
 
     function mkm_api_ajax_update_orders() {
-        $key = $_POST['key'];
+
+        $post = $_POST;
+
+        $key = $post['key'];
         if ( !isset( $key ) || !(bool)$key ) {
             echo 'done'; die;
         }
@@ -236,27 +239,29 @@
         }
 
         global $mkmApiBaseUrl;
+        $arr        = array();
+        $count      = $post['count'];
+        $state      = $post['state'];
+        $api        = array( 1, 2, 4, 8 );
+        $arr['key'] = $key;
 
-        $flag    = true;
-        $count   = 1;
-        $state   = 0;
-        $api     = array( 1, 2, 4, 8 );
-
-        while ( $flag ) {
-            $data    = mkm_api_auth( $mkmApiBaseUrl . $api[$state] . "/" . $count, $options[$key]['app_token'], $options[$key]['app_secret'], $options[$key]['access_token'], $options[$key]['token_secret'] );
-            if ( isset ( $data->order[0]->idOrder ) &&  $data->order[0]->idOrder != 0 ) {
-                sleep( 1 );
-                update_option( '__aaa', date("H:i:s", time()));
-                mkm_api_add_data_from_db( $data, $key );
-                $count = $count + 100;
-                if ( $count >= 501 ) $flag = false;
+        $data    = mkm_api_auth( $mkmApiBaseUrl . $api[$state] . "/" . $count, $options[$key]['app_token'], $options[$key]['app_secret'], $options[$key]['access_token'], $options[$key]['token_secret'] );
+        if ( isset ( $data->order[0]->idOrder ) &&  $data->order[0]->idOrder != 0 ) {
+            sleep( 1 );
+            mkm_api_add_data_from_db( $data, $key );
+            $arr['count'] = $count + 100;
+            $arr['state'] = $state;
+            if ( $count >= 301 ) {
+                echo 'done'; die;
+            }
+            echo json_encode( $arr ); die;
+        } else {
+            if ( $state >= 4 ) {
+                echo 'done'; die;
             } else {
-                if ( $state >= 4 ) {
-                    $flag = false;
-                } else {
-                    $count = 1;
-                    $state++;
-                }
+                $arr['count'] = 1;
+                $arr['state'] = $state + 1;
+                echo json_encode( $arr ); die;
             }
         }
 
@@ -845,7 +850,6 @@
             $data    = mkm_api_auth( $mkmApiBaseUrl . $api[$state] . "/" . $count, $options[$key]['app_token'], $options[$key]['app_secret'], $options[$key]['access_token'], $options[$key]['token_secret'] );
             if ( isset ( $data->order[0]->idOrder ) &&  $data->order[0]->idOrder != 0 ) {
                 sleep( 1 );
-                update_option( '__aaa', date("H:i:s", time()));
                 mkm_api_add_data_from_db( $data, $key );
                 $count = $count + 100;
                 if ( $count >= 501 ) $flag = false;

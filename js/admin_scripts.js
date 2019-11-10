@@ -198,26 +198,34 @@ jQuery(document).ready(function($){
         });
     });
 
-    $(document).on('click', '.mkm-api-update-orders', function(e){
-        e.preventDefault();
-        let elem = $(this);
-        let key  = elem.data('key');
+    function mkmApiAjaxUpdateOrders ( key, state, count ){
         $.ajax({
             type: 'POST',
             url: ajaxurl,
             data: {
                 action: 'mkm_api_ajax_update_orders',
-                key: key
+                key: key,
+                state: state,
+                count: count,
             },
             beforeSend: function(){
-                elem.attr('disabled',true).find('.mkm-api-update-orders-span').addClass('rotates');
+                $('.mkm-api-update-orders').attr('disabled',true).find('.mkm-api-update-orders-span').addClass('rotates');
             },
             success: function(result){
-                if(result == 'done'){
-                    elem.attr('disabled',false).find('.mkm-api-update-orders-span').removeClass('rotates');
+                if(result != 'done'){
+                    console.log(result);
+                    res = JSON.parse(result);
+                    mkmApiAjaxUpdateOrders(res.key, res.state, res.count);
+                } else {
+                    $('.mkm-api-update-orders').attr('disabled',false).find('.mkm-api-update-orders-span').removeClass('rotates');
                 }
             }
         });
+    }
+
+    $(document).on('click', '.mkm-api-update-orders', function(e){
+        e.preventDefault();
+        mkmApiAjaxUpdateOrders($(this).data('key'), 0, 1);
     });
 
 });
