@@ -4,7 +4,7 @@
  *
  * Plugin Name: MKM API
  * Plugin URI:  https://wordpress.org
- * Version:     1.0.2
+ * Version:     1.0.4
  * Description: The plugin receives data MKM API
  * Author:      Dmitriy Kovalev
  * Author URI:  https://www.upwork.com/freelancers/~014907274b0c121eb9
@@ -23,6 +23,7 @@
     add_action( 'wp_ajax_mkm_api_ajax_data', 'mkm_api_ajax_get_data' );
     add_action( 'wp_ajax_mkm_api_change_cron_select', 'mkm_api_ajax_change_cron_select' );
     add_action( 'wp_ajax_mkm_api_ajax_get_orders', 'mkm_api_ajax_get_orders' );
+    add_action( 'wp_ajax_mkm_api_ajax_update_orders', 'mkm_api_ajax_update_orders' );
     add_action( 'admin_enqueue_scripts', 'mkm_api_enqueue_admin' );
     add_action( 'admin_print_footer_scripts-toplevel_page_mkm-api-options', 'mkm_api_modal_to_footer' );
     add_filter( 'cron_schedules', 'mkm_api_add_schedules', 20 );
@@ -156,6 +157,7 @@
     }
 
     function mkm_api_ajax_get_data() {
+        global $mkmApiBaseUrl;
         $post    = $_POST;
         $arr     = array();
         $key     = $post['key'];
@@ -220,6 +222,46 @@
 
         wp_schedule_event( time(), $post['data'], 'mkm_api_cron_' . $key, array( array( 'key' => $key ) ) );
         update_option( 'mkm_api_options', $option );
+    }
+
+    function mkm_api_ajax_update_orders() {
+        $key = $_POST['key'];
+        if ( !isset( $key ) || !(bool)$key ) {
+            echo 'done'; die;
+        }
+
+        $options = get_option( 'mkm_api_options' );
+        if ( !array_key_exists( $key, $options ) || count( $options ) == 0 ) {
+            echo 'done'; die;
+        }
+
+        global $mkmApiBaseUrl;
+
+        $flag    = true;
+        $count   = 1;
+        $state   = 0;
+        $api     = array( 1, 2, 4, 8 );
+
+        while ( $flag ) {
+            $data    = mkm_api_auth( $mkmApiBaseUrl . $api[$state] . "/" . $count, $options[$key]['app_token'], $options[$key]['app_secret'], $options[$key]['access_token'], $options[$key]['token_secret'] );
+            if ( isset ( $data->order[0]->idOrder ) &&  $data->order[0]->idOrder != 0 ) {
+                sleep( 1 );
+                update_option( '__aaa', date("H:i:s", time()));
+                mkm_api_add_data_from_db( $data, $key );
+                $count = $count + 100;
+                if ( $count >= 501 ) $flag = false;
+            } else {
+                if ( $state >= 4 ) {
+                    $flag = false;
+                } else {
+                    $count = 1;
+                    $state++;
+                }
+            }
+        }
+
+        echo 'done'; die;
+
     }
 
     function mkm_api_admin_menu() {
@@ -298,7 +340,7 @@
                             <th></th>
                             <td class="mkm-api-app-td">
                                 <table class="mkm-api-apps-show">
-                                    <?php foreach( $option as $item ){ ?>
+                                    <?php foreach( $option as $item ) { ?>
                                     <?php $interval = ''; ?>
                                         <tr class="mkm-api-key-row">
                                             <td><?php echo $item['name']; ?></td>
@@ -308,6 +350,14 @@
                                                         <option <?php echo $sch_key == $item['cron'] ? 'selected ' : ''; ?>value="<?php echo $sch_key; ?>"><?php echo $sch_val['display']; ?></option>
                                                     <?php } ?>
                                                 </select>
+                                            </td>
+                                            <td>
+                                                <button class="button button-primary mkm-api-update-orders" data-key="<?php echo $item['app_token']; ?>">
+                                                    <?php _e( 'Update orders', 'mkm-api' ); ?>
+                                                    <span class="mkm-api-update-orders-span">
+                                                        <span class="dashicons-before dashicons-update"></span>
+                                                    </span>
+                                                </button>
                                             </td>
                                             <td class="mkm-api-get-all-data-td"><?php echo (bool)$item['get_data'] ? __( 'Data received', 'mkm-api' ) : submit_button( __( 'Get all data', 'mkm-api' ), 'primary mkm-api-get-all-data', 'submit', true, array( 'data-key' => $item['app_token'] ) ) ?></td>
                                             <td class="mkm-api-delete-key"><a href="" data-key="<?php echo $item['app_token']; ?>"><?php _e( 'Delete', 'mkm-api' ); ?></a></td>
@@ -783,7 +833,7 @@
 
     function mkm_cron_setup( $args ) {
 
-        global $wpdb;
+        global $mkmApiBaseUrl;
         $options = get_option( 'mkm_api_options' );
         $key     = $args['key'];
         $flag    = true;
@@ -811,23 +861,7 @@
 
     }
 
-    // add_action('init', function(){
-    //     global $wpdb;
-    //     $options = get_option( 'mkm_api_options' );
-    //     $data = mkm_api_auth( "https://api.cardmarket.com/ws/v2.0/orders/1/1/1", "HBi1qvutoSU5jmwh", "uT0V26MYB7AeZOyzIrqChmtI3LmhgqXo", "875XOAjMorDKmYxHDzHfV9Bc4oTCindT", "mkSJ1Q0DPPNmwQ6fUYZjKQcbfd1X711z" );
-    //     if(isset($data->order[0]->idOrder)){
-    //         dump(1);
-    //     }else{
-    //         dump(2);
-    //     }
 
-    //     $appname = $options['HBi1qvutoSU5jmwh']['name'];
-    //     dump($appname);
-    //     $query = "SELECT id_order FROM mkm_api_orders WHERE appname = '$appname' AND states = 'bought' OR states = 'paid' OR states = 'sent' OR states= 'received'";
-
-    //     $result = $wpdb->get_results($query);
-    //     dump($result);
-    // });
 
 
 

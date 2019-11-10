@@ -1,7 +1,7 @@
 jQuery(document).ready(function($){
 
     let AppMkm = {
-        proc: 1,
+        proc: 0,
         state: 'evaluated',
         dateFrom: '',
         dateTo: '',
@@ -194,6 +194,28 @@ jQuery(document).ready(function($){
             },
             success: function(result){
                 console.log('change cron');
+            }
+        });
+    });
+
+    $(document).on('click', '.mkm-api-update-orders', function(e){
+        e.preventDefault();
+        let elem = $(this);
+        let key  = elem.data('key');
+        $.ajax({
+            type: 'POST',
+            url: ajaxurl,
+            data: {
+                action: 'mkm_api_ajax_update_orders',
+                key: key
+            },
+            beforeSend: function(){
+                elem.attr('disabled',true).find('.mkm-api-update-orders-span').addClass('rotates');
+            },
+            success: function(result){
+                if(result == 'done'){
+                    elem.attr('disabled',false).find('.mkm-api-update-orders-span').removeClass('rotates');
+                }
             }
         });
     });

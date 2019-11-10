@@ -1,5 +1,5 @@
 .mkm-api-key-row td:first-child {
-    width: 50%;
+    width: 42%;
     font-style: italic;
 }
 
@@ -204,6 +204,33 @@
 
 .mkm-api-filter-select-app {
     margin: 0 25px 0 0;
+}
+
+.mkm-api-update-orders {
+    position: relative;
+}
+
+.wp-core-ui .button-primary.mkm-api-update-orders {
+    padding-right: 25px;
+}
+
+.mkm-api-update-orders-span {
+    position: absolute;
+    top: 3px;
+}
+
+.rotates {
+    animation: rotates 4s infinite linear;
+    transform-origin: 10px 10px;
+}
+
+@keyframes rotates {
+    from {
+      transform:rotate(0deg);
+    }
+    to {
+      transform:rotate(360deg);
+    }
 }
 
 @media ( max-width: 782px) {
