@@ -4,7 +4,7 @@
  *
  * Plugin Name: MKM API
  * Plugin URI:  https://wordpress.org
- * Version:     1.0.4
+ * Version:     1.0.6
  * Description: The plugin receives data MKM API
  * Author:      Dmitriy Kovalev
  * Author URI:  https://www.upwork.com/freelancers/~014907274b0c121eb9
@@ -14,6 +14,9 @@
  *
  */
 
+    /**
+     * Wordpress hooks, to which the functions of the plugin are attached, for proper operation
+     */
     register_activation_hook( __FILE__, 'mkm_api_create_table' );
     register_activation_hook( __FILE__, 'mkm_api_activation' );
     register_deactivation_hook( __FILE__, 'mkm_api_deactivation' );
@@ -28,6 +31,9 @@
     add_action( 'admin_print_footer_scripts-toplevel_page_mkm-api-options', 'mkm_api_modal_to_footer' );
     add_filter( 'cron_schedules', 'mkm_api_add_schedules', 20 );
 
+    /**
+     * Plugin global variables
+     */
     $mkmApiBaseUrl = 'https://api.cardmarket.com/ws/v2.0/orders/1/';
     $mkmApiStates  = array(
         'evaluated' => 'Evaluated',
@@ -39,6 +45,10 @@
         'cancelled' => 'Cancelled'
     );
 
+    /**
+     * @return string
+     * Custom screen output function for checking
+     */
     if ( !function_exists( 'dump' ) ) {
 		function dump( $var ) {
 			echo '<pre style="color: #c3c3c3; background-color: #282923;">';
@@ -47,12 +57,20 @@
 		}
     }
 
+    /**
+     * @return string
+     * Replacing an empty date value for display
+     */
     function mkm_api_null_date( $date ) {
         if ( $date == '1970-01-01 00:00:00' ) return '---- -- --';
 
         return $date;
     }
 
+    /**
+     * @return void
+     * Removing cron jobs when deactivation a plugin
+     */
     function mkm_api_deactivation() {
         $options = get_option( 'mkm_api_options' );
         if ( is_array( $options ) && count( $options ) > 0 ) {
@@ -64,6 +82,10 @@
         }
     }
 
+    /**
+     * @return void
+     * Connecting cron jobs when activating the plugin
+     */
     function mkm_api_activation() {
         $options = get_option( 'mkm_api_options' );
         if ( is_array( $options ) && count( $options ) > 0 ) {
@@ -77,6 +99,10 @@
         }
     }
 
+    /**
+     * @return void
+     * Displays a modal window for the progress bar.
+     */
     function mkm_api_modal_to_footer() {
 
         ?>
@@ -89,13 +115,21 @@
         <?php
     }
 
+    /**
+     * @return void
+     * Connecting CSS and JS files (custom and WP)
+     */
     function mkm_api_enqueue_admin() {
-        wp_enqueue_script('jquery-ui-datepicker');
+        wp_enqueue_script( 'jquery-ui-datepicker' );
         wp_enqueue_script( 'mkm-api-admin', plugins_url( 'js/admin_scripts.js', __FILE__ ) );
-        wp_enqueue_style('jqueryui', '//ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/themes/smoothness/jquery-ui.css', false, null );
+        wp_enqueue_style( 'jqueryui', '//ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/themes/smoothness/jquery-ui.css', false, null );
         wp_enqueue_style( 'mkm-api-admin', plugins_url( 'css/admin_style.css', __FILE__ ) );
     }
 
+    /**
+     * @return void
+     * Creating a data table for orders when activating the plugin
+     */
     function mkm_api_create_table() {
         global $wpdb;
 
@@ -123,11 +157,20 @@
         $wpdb->query($query);
     }
 
+    /**
+     * @param  app|string
+     * @return void
+     * Removing orders from the database when deleting the application
+     */
     function mkm_api_delete_app_orders( $app ) {
         global $wpdb;
         $wpdb->delete( 'mkm_api_orders', array( 'appname' => $app ), array( '%s' ) );
     }
 
+    /**
+     * @return void
+     * Uninstall an application when a button is clicked
+     */
     function mkm_api_ajax_delete_key() {
 
         $post    = $_POST;
@@ -156,6 +199,10 @@
         die;
     }
 
+    /**
+     * @return string
+     * We get all the data by API (works in conjunction with AJAX)
+     */
     function mkm_api_ajax_get_data() {
         global $mkmApiBaseUrl;
         $post    = $_POST;
@@ -202,6 +249,10 @@
         die;
     }
 
+    /**
+     * @return void
+     * Change the interval of operation of the cron (works in conjunction with AJAX)
+     */
     function mkm_api_ajax_change_cron_select() {
         $post    = $_POST;
         $arr     = array();
@@ -224,6 +275,10 @@
         update_option( 'mkm_api_options', $option );
     }
 
+    /**
+     * @return void
+     * Updating order data (works in conjunction with AJAX)
+     */
     function mkm_api_ajax_update_orders() {
 
         $post = $_POST;
@@ -269,18 +324,31 @@
 
     }
 
+    /**
+     * @return void
+     * Forming Plugin Pages
+     */
     function mkm_api_admin_menu() {
         add_menu_page( 'MKM API', 'MKM API', 'manage_options', 'mkm-api-options', 'mkm_api_options', 'dashicons-groups' );
 
         add_submenu_page( 'mkm-api-options', 'MKM API DATA', 'API Orders', 'manage_options', 'mkm-api-subpage', 'mkm_api_orders' );
     }
 
+    /**
+     * @return void
+     * Formation of the main option for applications
+     */
     function mkm_api_admin_settings() {
 
         register_setting( 'mkm_api_group_options', 'mkm_api_options', 'mkm_api_sanitize' );
 
     }
 
+    /**
+     * @param array
+     * @return array
+     * Checking and saving options when creating an application
+     */
     function mkm_api_sanitize( $option ) {
 
         if ( isset( $_POST['data'] ) ) return $option;
@@ -299,7 +367,7 @@
             add_settings_error( 'mkm_api_options', 'mkm_api_options', __( 'This App Token is already in use', 'mkm-api' ), 'error' );
             return $arr;
         }
-        
+
         if ( count( $arr ) > 0 ) {
             foreach ( $arr as $app_elem ) {
                 if ( $app_elem['name'] == $option['name'] ) {
@@ -328,6 +396,10 @@
         return $arr;
     }
 
+    /**
+     * @return void
+     * Data output to plugin settings page
+     */
     function mkm_api_options( ) {
         $option    = get_option( 'mkm_api_options' );
         $schedules = wp_get_schedules();
@@ -412,6 +484,10 @@
         <?php
     }
 
+    /**
+     * @return void
+     * Recording new and updating old orders in the database
+     */
     function mkm_api_add_data_from_db( $data, $key ) {
         global $wpdb;
         $option = get_option( 'mkm_api_options' );
@@ -466,6 +542,15 @@
         }
     }
 
+    /**
+     * @param string
+     * @param string
+     * @param string
+     * @param string
+     * @param string
+     * @return string
+     * The function of connecting via API and receiving data in XML Format
+     */
     function mkm_api_auth( $url, $appToken, $appSecret, $accessToken, $accessSecret ) {
 
         /**
@@ -612,6 +697,10 @@
         return $decoded;
     }
 
+    /**
+     * @return void
+     * Forms an output of these orders to the screen
+     */
     function mkm_api_ajax_get_orders(){
         $post = $_POST;
 
@@ -666,6 +755,15 @@
         die();
     }
 
+    /**
+     * @param int
+     * @param string
+     * @param string
+     * @param string
+     * @param string
+     * @return array
+     * Getting orders from the database
+     */
     function mkm_api_get_orders( $start = 0, $apps = 'all', $from = '1970-01-01 00:00:00', $to = 0, $state = 'evaluated' ) {
         global $mkmApiStates;
         global $wpdb;
@@ -682,6 +780,10 @@
         return $data;
     }
 
+    /**
+     * @return void
+     * Forms the initial output of these orders to the screen
+     */
     function mkm_api_orders() {
 
         $result  = mkm_api_get_orders();
@@ -804,6 +906,10 @@
         <?php
     }
 
+    /**
+     * @return array
+     * Adding Time Intervals to Standard WP Intervals
+     */
     function mkm_api_add_schedules( $schedules ) {
         $schedules['mkm-api-minute'] = array(
             'interval' => 60,
@@ -836,6 +942,11 @@
         }
     }
 
+    /**
+     * @param array
+     * @return void
+     * Performing Cron Tasks
+     */
     function mkm_cron_setup( $args ) {
 
         global $mkmApiBaseUrl;
