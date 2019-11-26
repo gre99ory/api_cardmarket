@@ -223,6 +223,27 @@ jQuery(document).ready(function($){
         });
     }
 
+    $(document).on('click', '.mkm-api-checkup', function(){
+        let check = $(this).data('check');
+        let key = $(this).data('key');
+
+        $.ajax({
+            type: 'POST',
+            url: ajaxurl,
+            data: {
+                check: check,
+                key: key,
+                action: 'mkm_api_checkup',
+            },
+            success: function(result){
+                console.log(result);
+            }
+        });
+
+        console.log(check);
+        console.log(key);
+    });
+
     $(document).on('click', '.mkm-api-update-orders', function(e){
         e.preventDefault();
         mkmApiAjaxUpdateOrders($(this).data('key'), 0, 1);

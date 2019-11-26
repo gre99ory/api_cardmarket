@@ -17,7 +17,9 @@
     /**
      * Wordpress hooks, to which the functions of the plugin are attached, for proper operation
      */
-    register_activation_hook( __FILE__, 'mkm_api_create_table' );
+    register_activation_hook( __FILE__, 'mkm_api_create_table_orders' );
+    register_activation_hook( __FILE__, 'mkm_api_create_table_account' );
+    register_activation_hook( __FILE__, 'mkm_api_create_table_article' );
     register_activation_hook( __FILE__, 'mkm_api_activation' );
     register_deactivation_hook( __FILE__, 'mkm_api_deactivation' );
     add_action( 'admin_menu', 'mkm_api_admin_menu' );
@@ -27,6 +29,7 @@
     add_action( 'wp_ajax_mkm_api_change_cron_select', 'mkm_api_ajax_change_cron_select' );
     add_action( 'wp_ajax_mkm_api_ajax_get_orders', 'mkm_api_ajax_get_orders' );
     add_action( 'wp_ajax_mkm_api_ajax_update_orders', 'mkm_api_ajax_update_orders' );
+    add_action( 'wp_ajax_mkm_api_checkup', 'mkm_api_ajax_checkup' );
     add_action( 'admin_enqueue_scripts', 'mkm_api_enqueue_admin' );
     add_action( 'admin_print_footer_scripts-toplevel_page_mkm-api-options', 'mkm_api_modal_to_footer' );
     add_filter( 'cron_schedules', 'mkm_api_add_schedules', 20 );
@@ -130,7 +133,7 @@
      * @return void
      * Creating a data table for orders when activating the plugin
      */
-    function mkm_api_create_table() {
+    function mkm_api_create_table_orders() {
         global $wpdb;
 
         $query = "CREATE TABLE IF NOT EXISTS `mkm_api_orders` (
@@ -151,6 +154,40 @@
             `packaging` VARCHAR(255) NOT NULL,
             `article_value` VARCHAR(255) NOT NULL,
             `total_value` VARCHAR(255) NOT NULL,
+            `appname` VARCHAR(50) NOT NULL,
+            PRIMARY KEY (`id`)) CHARSET=utf8;";
+
+        $wpdb->query($query);
+    }
+
+    /**
+     * @return void
+     * Creating a data table for articles when activating the plugin
+     */
+    function mkm_api_create_table_article() {
+        global $wpdb;
+
+        $query = "CREATE TABLE IF NOT EXISTS `mkm_api_articles` (
+            `id` INT(11) unsigned NOT NULL AUTO_INCREMENT,
+            `id_article` INT(10) NOT NULL,
+            `id_product` INT(10) NOT NULL,
+            `states` VARCHAR(50) NOT NULL,
+            `appname` VARCHAR(50) NOT NULL,
+            PRIMARY KEY (`id`)) CHARSET=utf8;";
+
+        $wpdb->query($query);
+    }
+
+    /**
+     * @return void
+     * Creating a data table for account when activating the plugin
+     */
+    function mkm_api_create_table_account() {
+        global $wpdb;
+
+        $query = "CREATE TABLE IF NOT EXISTS `mkm_api_accounts` (
+            `id` INT(11) unsigned NOT NULL AUTO_INCREMENT,
+            `key_account` INT(10) NOT NULL,
             `appname` VARCHAR(50) NOT NULL,
             PRIMARY KEY (`id`)) CHARSET=utf8;";
 
@@ -247,6 +284,30 @@
         }
 
         die;
+    }
+
+    /**
+     * @return void
+     * Change the checkbox for sort update data (works in conjunction with AJAX)
+     */
+    function mkm_api_ajax_checkup() {
+        // $key    = $_POST['key'];
+        // $check  = $_POST['check'];
+        // $checks = array( 'orders', 'account', 'articles' );
+        //$option = get_option( 'mkm_api_options' );
+
+        // if( !(bool)$key || !(bool)$check || !in_array( $check, $checks ) || !array_key_exists( $key, $option ) ) wp_die( 'error' );
+        //$option[$key]['checks'][$check] = 3;
+
+        $up = update_option( 'mkm_api_options', 2 );
+
+        if ( $up ) {
+            echo 'check'; die;
+        } else {
+            echo 'non check';die;
+        }
+
+
     }
 
     /**
@@ -381,6 +442,7 @@
         $add_array['access_token'] = $option['access_token'];
         $add_array['app_secret']   = $option['app_secret'];
         $add_array['app_token']    = $option['app_token'];
+        $add_array['checks']       = array( 'orders' => 0, 'account' => 0, 'articles' => 0 );
         $add_array['name']         = $option['name'];
         $add_array['cron']         = $option['cron'];
         $add_array['get_data']     = 0;
@@ -429,8 +491,22 @@
                                                 </select>
                                             </td>
                                             <td>
+                                                <div><?php dump($item['checks']); ?>
+                                                    <input <?php echo (bool)$item['checks']['orders'] ? ' checked="checked" ' : '' ?> type="checkbox" id="mkm-api-check-order-<?php echo $item['app_token']; ?>" class="mkm-api-checkup" data-check="orders" data-key="<?php echo $item['app_token']; ?>"/>
+                                                    <label for="mkm-api-check-order-<?php echo $item['app_token']; ?>"><?php _e( 'Orders', 'mkm-api' ); ?></label>
+                                                </div>
+                                                <div>
+                                                    <input type="checkbox" id="mkm-api-check-account-<?php echo $item['app_token']; ?>" class="mkm-api-checkup" data-check="account" data-key="<?php echo $item['app_token']; ?>"/>
+                                                    <label for="mkm-api-check-account-<?php echo $item['app_token']; ?>"><?php _e( 'Account', 'mkm-api' ); ?></label>
+                                                </div>
+                                                <div>
+                                                    <input type="checkbox" id="mkm-api-check-articles-<?php echo $item['app_token']; ?>" class="mkm-api-checkup" data-check="articles" data-key="<?php echo $item['app_token']; ?>"/>
+                                                    <label for="mkm-api-check-articles-<?php echo $item['app_token']; ?>"><?php _e( 'Articles', 'mkm-api' ); ?></label>
+                                                </div>
+                                            </td>
+                                            <td>
                                                 <button class="button button-primary mkm-api-update-orders" data-key="<?php echo $item['app_token']; ?>">
-                                                    <?php _e( 'Update orders', 'mkm-api' ); ?>
+                                                    <?php _e( 'Update', 'mkm-api' ); ?>
                                                     <span class="mkm-api-update-orders-span">
                                                         <span class="dashicons-before dashicons-update"></span>
                                                     </span>
