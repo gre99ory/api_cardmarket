@@ -28,8 +28,8 @@
     add_action( 'wp_ajax_mkm_api_ajax_data', 'mkm_api_ajax_get_data' );
     add_action( 'wp_ajax_mkm_api_change_cron_select', 'mkm_api_ajax_change_cron_select' );
     add_action( 'wp_ajax_mkm_api_ajax_get_orders', 'mkm_api_ajax_get_orders' );
-    add_action( 'wp_ajax_mkm_api_ajax_update_orders', 'mkm_api_ajax_update_orders' );
     add_action( 'wp_ajax_mkm_api_checkup', 'mkm_api_ajax_checkup' );
+    add_action( 'wp_ajax_mkm_api_ajax_update_orders', 'mkm_api_ajax_update_orders' );
     add_action( 'admin_enqueue_scripts', 'mkm_api_enqueue_admin' );
     add_action( 'admin_print_footer_scripts-toplevel_page_mkm-api-options', 'mkm_api_modal_to_footer' );
     add_filter( 'cron_schedules', 'mkm_api_add_schedules', 20 );
@@ -171,8 +171,24 @@
             `id` INT(11) unsigned NOT NULL AUTO_INCREMENT,
             `id_article` INT(10) NOT NULL,
             `id_product` INT(10) NOT NULL,
-            `states` VARCHAR(50) NOT NULL,
+            `id_language` INT(10) NOT NULL,
+            `product_nr` INT(10) NOT NULL,
+            `expIcon` INT(10) NOT NULL,
+            `in_shopping_cart` INT(1) NOT NULL,
+            `is_foil` INT(1) NOT NULL,
+            `is_signed` INT(1) NOT NULL,
+            `is_altered` INT(1) NOT NULL,
+            `is_playset` INT(1) NOT NULL,
             `appname` VARCHAR(50) NOT NULL,
+            `language_name` VARCHAR(50) NOT NULL,
+            `price` VARCHAR(50) NOT NULL,
+            `count` VARCHAR(50) NOT NULL,
+            `en_name` VARCHAR(50) NOT NULL,
+            `loc_name` VARCHAR(50) NOT NULL,
+            `image` VARCHAR(255) NOT NULL,
+            `rarity` VARCHAR(255) NOT NULL,
+            `condition` VARCHAR(50) NOT NULL,
+            `last_edited` DATETIME,
             PRIMARY KEY (`id`)) CHARSET=utf8;";
 
         $wpdb->query($query);
@@ -187,8 +203,26 @@
 
         $query = "CREATE TABLE IF NOT EXISTS `mkm_api_accounts` (
             `id` INT(11) unsigned NOT NULL AUTO_INCREMENT,
-            `key_account` INT(10) NOT NULL,
+            `key_account` VARCHAR(25) NOT NULL,
             `appname` VARCHAR(50) NOT NULL,
+            `username` VARCHAR(50) NOT NULL,
+            `country` VARCHAR(50) NOT NULL,
+            `total_balance` VARCHAR(50) NOT NULL,
+            `money_balance` VARCHAR(50) NOT NULL,
+            `bonus_balance` VARCHAR(50) NOT NULL,
+            `unpaid_amount` VARCHAR(50) NOT NULL,
+            `provider_recharge_amount` VARCHAR(50) NOT NULL,
+            `id_user` INT(10) NOT NULL,
+            `is_сommercial` INT(1) NOT NULL,
+            `may_sell` INT(1) NOT NULL,
+            `seller_activation` INT(1) NOT NULL,
+            `reputation` INT(1) NOT NULL,
+            `ships_fast` INT(1) NOT NULL,
+            `sell_count` INT(10) NOT NULL,
+            `sold_items` INT(10) NOT NULL,
+            `avg_shipping_time` INT(10) NOT NULL,
+            `on_vacation` INT(1) NOT NULL,
+            `id_display_language` INT(1) NOT NULL,
             PRIMARY KEY (`id`)) CHARSET=utf8;";
 
         $wpdb->query($query);
@@ -291,22 +325,21 @@
      * Change the checkbox for sort update data (works in conjunction with AJAX)
      */
     function mkm_api_ajax_checkup() {
-        // $key    = $_POST['key'];
-        // $check  = $_POST['check'];
-        // $checks = array( 'orders', 'account', 'articles' );
-        //$option = get_option( 'mkm_api_options' );
+        $key    = $_POST['data'];
+        $check  = $_POST['check'];
+        $checks = array( 'orders', 'account', 'articles' );
+        $option = get_option( 'mkm_api_options' );
 
-        // if( !(bool)$key || !(bool)$check || !in_array( $check, $checks ) || !array_key_exists( $key, $option ) ) wp_die( 'error' );
-        //$option[$key]['checks'][$check] = 3;
+        if( !(bool)$key || !(bool)$check || !in_array( $check, $checks ) || !array_key_exists( $key, $option ) ) wp_die( 'error' );
+        $option[$key]['checks'][$check] = !$option[$key]['checks'][$check];
 
-        $up = update_option( 'mkm_api_options', 2 );
+        $up = update_option( 'mkm_api_options', $option );
 
         if ( $up ) {
             echo 'check'; die;
         } else {
             echo 'non check';die;
         }
-
 
     }
 
@@ -491,16 +524,16 @@
                                                 </select>
                                             </td>
                                             <td>
-                                                <div><?php dump($item['checks']); ?>
+                                                <div>
                                                     <input <?php echo (bool)$item['checks']['orders'] ? ' checked="checked" ' : '' ?> type="checkbox" id="mkm-api-check-order-<?php echo $item['app_token']; ?>" class="mkm-api-checkup" data-check="orders" data-key="<?php echo $item['app_token']; ?>"/>
                                                     <label for="mkm-api-check-order-<?php echo $item['app_token']; ?>"><?php _e( 'Orders', 'mkm-api' ); ?></label>
                                                 </div>
                                                 <div>
-                                                    <input type="checkbox" id="mkm-api-check-account-<?php echo $item['app_token']; ?>" class="mkm-api-checkup" data-check="account" data-key="<?php echo $item['app_token']; ?>"/>
+                                                    <input <?php echo (bool)$item['checks']['account'] ? ' checked="checked" ' : '' ?> type="checkbox" id="mkm-api-check-account-<?php echo $item['app_token']; ?>" class="mkm-api-checkup" data-check="account" data-key="<?php echo $item['app_token']; ?>"/>
                                                     <label for="mkm-api-check-account-<?php echo $item['app_token']; ?>"><?php _e( 'Account', 'mkm-api' ); ?></label>
                                                 </div>
                                                 <div>
-                                                    <input type="checkbox" id="mkm-api-check-articles-<?php echo $item['app_token']; ?>" class="mkm-api-checkup" data-check="articles" data-key="<?php echo $item['app_token']; ?>"/>
+                                                    <input <?php echo (bool)$item['checks']['articles'] ? ' checked="checked" ' : '' ?> type="checkbox" id="mkm-api-check-articles-<?php echo $item['app_token']; ?>" class="mkm-api-checkup" data-check="articles" data-key="<?php echo $item['app_token']; ?>"/>
                                                     <label for="mkm-api-check-articles-<?php echo $item['app_token']; ?>"><?php _e( 'Articles', 'mkm-api' ); ?></label>
                                                 </div>
                                             </td>
@@ -619,6 +652,64 @@
     }
 
     /**
+     * @return void
+     * Recording accounts in the database
+     */
+    function mkm_api_add_account_from_db( $data, $key ) {
+        global $wpdb;
+        $option = get_option( 'mkm_api_options' );
+
+        $value = $data->account;
+
+        $appName         = $option[$key]['name'];
+        $idUser          = esc_sql( (int)$value->idUser );
+        $username        = esc_sql( $value->username );
+        $country         = esc_sql( $value->country );
+        $totalBalance    = esc_sql( $value->moneyDetails->totalBalance );
+        $moneyBalance    = esc_sql( $value->moneyDetails->moneyBalance );
+        $bonusBalance    = esc_sql( $value->moneyDetails->bonusBalance );
+        $unpaidAmount    = esc_sql( $value->moneyDetails->unpaidAmount );
+        $providerAmount  = esc_sql( $value->moneyDetails->providerRechargeAmount );
+        $city            = esc_sql( $value->shippingAddress->city );
+        $country         = esc_sql( $value->shippingAddress->country );
+        $articleCount    = (int)esc_sql( $value->articleCount );
+        $evaluationGrade = esc_sql( $value->evaluation->evaluationGrade );
+        $itemDescription = esc_sql( $value->evaluation->itemDescription );
+        $packaging       = esc_sql( $value->evaluation->packaging );
+        $articleValue    = esc_sql( $value->articleValue );
+        $totalValue      = esc_sql( $value->totalValue );
+        $appName         = esc_sql( $option[$key]['name'] );
+
+
+        if ( !$wpdb->get_var( "SELECT id_order FROM mkm_api_orders WHERE id_order = $idOrder" ) ) {
+            $wpdb->query( $wpdb->prepare( "INSERT INTO mkm_api_orders (id_order, states, date_bought, date_paid, date_sent, date_received, price, is_insured, city, country, article_count, evaluation_grade, item_description, packaging, article_value, total_value, appname ) VALUES ( %d, %s, %s, %s, %s, %s, %f, %d, %s, %s, %d, %s, %s, %s, %f, %f, %s )", $idOrder, $state, $dateBought, $datePaid, $dateSent, $dateReceived, $price, $isInsured, $city, $country, $articleCount, $evaluationGrade, $itemDescription, $packaging, $articleValue, $totalValue, $appName ) );
+        } else {
+            $wpdb->update( 'mkm_api_orders',
+                array(
+                    'states'           => $state,
+                    'date_bought'      => $dateBought,
+                    'date_paid'        => $datePaid,
+                    'date_sent'        => $dateSent,
+                    'date_received'    => $dateReceived,
+                    'price'            => $price,
+                    'is_insured'       => $isInsured,
+                    'city'             => $city,
+                    'country'          => $country,
+                    'article_count'    => $articleCount,
+                    'evaluation_grade' => $evaluationGrade,
+                    'item_description' => $itemDescription,
+                    'packaging'        => $packaging,
+                    'article_value'    => $articleValue,
+                    'total_value'      => $totalValue,
+                ),
+                array( 'id_order' => $idOrder ),
+                array( '%s', '%s', '%s', '%s', '%s', '%f', '%d', '%s', '%s', '%d', '%s', '%s', '%s', '%f', '%f' ),
+                array( '%d' )
+            );
+        }
+    }
+
+    /**
      * @param string
      * @param string
      * @param string
@@ -645,7 +736,7 @@
         */
 
         $method             = "GET";
-        $nonce              = wp_create_nonce();
+        $nonce              = 'c6d25d33be';
         $timestamp          = time();
         $signatureMethod    = "HMAC-SHA1";
         $version            = "1.0";
@@ -1051,6 +1142,11 @@
         }
 
     }
+
+    $datas = mkm_api_auth( "https://api.cardmarket.com/ws/v2.0/account", 'HBi1qvutoSU5jmwh', 'uT0V26MYB7AeZOyzIrqChmtI3LmhgqXo', '875XOAjMorDKmYxHDzHfV9Bc4oTCindT', 'mkSJ1Q0DPPNmwQ6fUYZjKQcbfd1X711z');
+    // $datas = mkm_api_auth( "https://api.cardmarket.com/ws/v2.0/stock/20001", 'HBi1qvutoSU5jmwh', 'uT0V26MYB7AeZOyzIrqChmtI3LmhgqXo', '875XOAjMorDKmYxHDzHfV9Bc4oTCindT', 'mkSJ1Q0DPPNmwQ6fUYZjKQcbfd1X711z');
+
+    dump($datas);
 
 
 

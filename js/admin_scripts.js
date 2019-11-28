@@ -232,7 +232,7 @@ jQuery(document).ready(function($){
             url: ajaxurl,
             data: {
                 check: check,
-                key: key,
+                data: key,
                 action: 'mkm_api_checkup',
             },
             success: function(result){
@@ -240,8 +240,6 @@ jQuery(document).ready(function($){
             }
         });
 
-        console.log(check);
-        console.log(key);
     });
 
     $(document).on('click', '.mkm-api-update-orders', function(e){
