@@ -290,6 +290,7 @@
         if ( $post['count'] == 1 ) {
             $count = mkm_api_auth( "https://api.cardmarket.com/ws/v2.0/account", $option[$key]['app_token'], $option[$key]['app_secret'], $option[$key]['access_token'], $option[$key]['token_secret']);
             $arr['count'] = esc_sql( $count->account->sellCount );
+            mkm_api_add_account_from_db( $count, $key );
         } else {
             $arr['count'] = $post['count'];
         }
@@ -653,6 +654,72 @@
 
     /**
      * @return void
+     * Recording new and updating old orders in the database
+     */
+    function mkm_api_add_articles_from_db( $data, $key ) {
+        global $wpdb;
+        $option = get_option( 'mkm_api_options' );
+
+        foreach ( $data->article as $value ) {
+            $idArticle       = esc_sql( (int)$value->idArticle );
+            if ( !isset( $idArticle ) || $idArticle == 0 ) continue;
+            $idProduct       = esc_sql( (int)$value->idProduct );
+            $idLanguage      = esc_sql( (int)$value->language->idLanguage );
+            $productNr       = esc_sql( (int)$value->product->nr );
+            $expIcon         = esc_sql( (int)$value->product->expIcon );
+            $inShoppingCart  = esc_sql( $value->inShoppingCart );
+            $isFoil          = esc_sql( $value->isFoil );
+            $isSigned        = esc_sql( $value->isSigned );
+            $isAltered       = esc_sql( $value->isAltered );
+            $isPlayset       = esc_sql( $value->isPlayset );
+            $languageName    = esc_sql( $value->language->languageName );
+            $price           = esc_sql( $value->price );
+            $count           = esc_sql( (int)$value->count );
+            $enName          = esc_sql( $value->product->enName );
+            $locName         = esc_sql( $value->product->locName );
+            $image           = esc_sql( $value->product->image );
+            $rarity          = esc_sql( $value->product->rarity );
+            $condition       = esc_sql( $value->condition );
+            $lastEdited      = date( "Y-m-d H:i:s", strtotime( esc_sql( $value->lastEdited ) ) );
+            $appName         = esc_sql( $option[$key]['name'] );
+
+
+            if ( !$wpdb->get_var( "SELECT id_article FROM mkm_api_articles WHERE id_article = $idArticle" ) ) {
+                $wpdb->query( $wpdb->prepare( "INSERT INTO mkm_api_articles (id_article, id_product, id_language, product_nr, expIcon, in_shopping_cart, is_foil, is_signed, is_altered, is_playset, appname, language_name, price, counts, en_name, loc_name, a_image, rarity, condition, 	last_edited ) VALUES ( %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s )", $idArticle, $idProduct, $idLanguage, $productNr, $expIcon, $inShoppingCart, $isFoil, $isSigned, $isAltered, $isPlayset, $appName, $languageName, $price, $count, $enName, $locName, $image, $rarity, $condition, $lastEdited ) );
+            } else {
+                $wpdb->update( 'mkm_api_articles',
+                    array(
+                        'id_article'       => $idArticle,
+                        'id_product'       => $idProduct,
+                        'id_language'      => $idLanguage,
+                        'product_nr'       => $productNr,
+                        'expIcon'          => $expIcon,
+                        'in_shopping_cart' => $inShoppingCart,
+                        'is_foil'          => $isFoil,
+                        'is_signed'        => $isSigned,
+                        'is_altered'       => $isAltered,
+                        'is_playset'       => $isPlayset,
+                        'appname'          => $appName,
+                        'language_name'    => $languageName,
+                        'price'            => $price,
+                        'counts'           => $count,
+                        'en_name'          => $enName,
+                        'loc_name'         => $locName,
+                        'a_image'          => $image,
+                        'rarity'           => $rarity,
+                        'condition'        => $condition,
+                        'last_edited'      => $lastEdited,
+                    ),
+                    array( 'id_article' => $idArticle ),
+                    array( '%d', '%d', '%d', '%d', '%d', '%d', '%d', '%d', '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' ),
+                    array( '%d' )
+                );
+            }
+        }
+    }
+
+    /**
+     * @return void
      * Recording accounts in the database
      */
     function mkm_api_add_account_from_db( $data, $key ) {
@@ -661,50 +728,55 @@
 
         $value = $data->account;
 
-        $appName         = $option[$key]['name'];
-        $idUser          = esc_sql( (int)$value->idUser );
-        $username        = esc_sql( $value->username );
-        $country         = esc_sql( $value->country );
-        $totalBalance    = esc_sql( $value->moneyDetails->totalBalance );
-        $moneyBalance    = esc_sql( $value->moneyDetails->moneyBalance );
-        $bonusBalance    = esc_sql( $value->moneyDetails->bonusBalance );
-        $unpaidAmount    = esc_sql( $value->moneyDetails->unpaidAmount );
-        $providerAmount  = esc_sql( $value->moneyDetails->providerRechargeAmount );
-        $city            = esc_sql( $value->shippingAddress->city );
-        $country         = esc_sql( $value->shippingAddress->country );
-        $articleCount    = (int)esc_sql( $value->articleCount );
-        $evaluationGrade = esc_sql( $value->evaluation->evaluationGrade );
-        $itemDescription = esc_sql( $value->evaluation->itemDescription );
-        $packaging       = esc_sql( $value->evaluation->packaging );
-        $articleValue    = esc_sql( $value->articleValue );
-        $totalValue      = esc_sql( $value->totalValue );
-        $appName         = esc_sql( $option[$key]['name'] );
+        $appName           = $option[$key]['name'];
+        $idUser            = esc_sql( (int)$value->idUser );
+        $username          = esc_sql( $value->username );
+        $country           = esc_sql( $value->country );
+        $totalBalance      = esc_sql( $value->moneyDetails->totalBalance );
+        $moneyBalance      = esc_sql( $value->moneyDetails->moneyBalance );
+        $bonusBalance      = esc_sql( $value->moneyDetails->bonusBalance );
+        $unpaidAmount      = esc_sql( $value->moneyDetails->unpaidAmount );
+        $providerAmount    = esc_sql( $value->moneyDetails->providerRechargeAmount );
+        $isCommercial      = esc_sql( $value->isCommercial );
+        $maySell           = esc_sql( $value->maySell );
+        $sellerActivation  = esc_sql( $value->sellerActivation );
+        $reputation        = esc_sql( $value->reputation );
+        $shipsFast         = esc_sql( $value->shipsFast );
+        $sellCount         = esc_sql( $value->sellCount );
+        $soldItems         = esc_sql( $value->soldItems );
+        $avgShippingTime   = esc_sql( $value->avgShippingTime );
+        $onVacation        = esc_sql( $value->onVacation );
+        $idDisplayLanguage = esc_sql( $value->idDisplayLanguage );
 
 
-        if ( !$wpdb->get_var( "SELECT id_order FROM mkm_api_orders WHERE id_order = $idOrder" ) ) {
-            $wpdb->query( $wpdb->prepare( "INSERT INTO mkm_api_orders (id_order, states, date_bought, date_paid, date_sent, date_received, price, is_insured, city, country, article_count, evaluation_grade, item_description, packaging, article_value, total_value, appname ) VALUES ( %d, %s, %s, %s, %s, %s, %f, %d, %s, %s, %d, %s, %s, %s, %f, %f, %s )", $idOrder, $state, $dateBought, $datePaid, $dateSent, $dateReceived, $price, $isInsured, $city, $country, $articleCount, $evaluationGrade, $itemDescription, $packaging, $articleValue, $totalValue, $appName ) );
+        if ( !$wpdb->get_var( "SELECT key_account FROM mkm_api_accounts WHERE key_account = '$key'" ) ) {
+            $wpdb->query( $wpdb->prepare( "INSERT INTO mkm_api_accounts (key_account, appname, username, country, total_balance, money_balance,bonus_balance, unpaid_amount, provider_recharge_amount, id_user, is_сommercial, may_sell, seller_activation, reputation, ships_fast, sell_count, sold_items, avg_shipping_time, on_vacation, id_display_language ) VALUES ( %s, %s, %s, %s, %f, %f, %f, %f, %s, %d, %d, %s, %s, %s, %s, %s, %s, %s, %s, %s )", $key, $appName, $username, $country, $totalBalance, $moneyBalance, $bonusBalance, $unpaidAmount, $providerAmount, $idUser, $isCommercial, $maySell, $sellerActivation, $reputation, $shipsFast, $sellCount, $soldItems, $avgShippingTime, $onVacation, $idDisplayLanguage ) );
         } else {
-            $wpdb->update( 'mkm_api_orders',
+            $wpdb->update( 'mkm_api_accounts',
                 array(
-                    'states'           => $state,
-                    'date_bought'      => $dateBought,
-                    'date_paid'        => $datePaid,
-                    'date_sent'        => $dateSent,
-                    'date_received'    => $dateReceived,
-                    'price'            => $price,
-                    'is_insured'       => $isInsured,
-                    'city'             => $city,
-                    'country'          => $country,
-                    'article_count'    => $articleCount,
-                    'evaluation_grade' => $evaluationGrade,
-                    'item_description' => $itemDescription,
-                    'packaging'        => $packaging,
-                    'article_value'    => $articleValue,
-                    'total_value'      => $totalValue,
+                    'appname'       => $appName,
+                    'username'      => $username,
+                    'country'       => $country,
+                    'total_balance' => $totalBalance,
+                    'money_balance' => $moneyBalance,
+                    'bonus_balance' => $bonusBalance,
+                    'unpaid_amount' => $unpaidAmount,
+                    'provider_recharge_amount' => $providerAmount,
+                    'id_user'       => $idUser,
+                    'is_сommercial' => $isCommercial,
+                    'may_sell'      => $maySell,
+                    'seller_activation' => $sellerActivation,
+                    'reputation'    => $reputation,
+                    'ships_fast'    => $shipsFast,
+                    'sell_count'    => $sellCount,
+                    'sold_items'    => $soldItems,
+                    'avg_shipping_time' => $avgShippingTime,
+                    'on_vacation'   => $onVacation,
+                    'id_display_language' => $idDisplayLanguage,
                 ),
-                array( 'id_order' => $idOrder ),
-                array( '%s', '%s', '%s', '%s', '%s', '%f', '%d', '%s', '%s', '%d', '%s', '%s', '%s', '%f', '%f' ),
-                array( '%d' )
+                array( 'key_account' => $key ),
+                array( '%d', '%s', '%s', '%s', '%f', '%f', '%f', '%f', '%s', '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' ),
+                array( '%s' )
             );
         }
     }
@@ -1143,8 +1215,8 @@
 
     }
 
-    $datas = mkm_api_auth( "https://api.cardmarket.com/ws/v2.0/account", 'HBi1qvutoSU5jmwh', 'uT0V26MYB7AeZOyzIrqChmtI3LmhgqXo', '875XOAjMorDKmYxHDzHfV9Bc4oTCindT', 'mkSJ1Q0DPPNmwQ6fUYZjKQcbfd1X711z');
-    // $datas = mkm_api_auth( "https://api.cardmarket.com/ws/v2.0/stock/20001", 'HBi1qvutoSU5jmwh', 'uT0V26MYB7AeZOyzIrqChmtI3LmhgqXo', '875XOAjMorDKmYxHDzHfV9Bc4oTCindT', 'mkSJ1Q0DPPNmwQ6fUYZjKQcbfd1X711z');
+    // $datas = mkm_api_auth( "https://api.cardmarket.com/ws/v2.0/account", 'HBi1qvutoSU5jmwh', 'uT0V26MYB7AeZOyzIrqChmtI3LmhgqXo', '875XOAjMorDKmYxHDzHfV9Bc4oTCindT', 'mkSJ1Q0DPPNmwQ6fUYZjKQcbfd1X711z');
+    $datas = mkm_api_auth( "https://api.cardmarket.com/ws/v2.0/stock/20001", 'HBi1qvutoSU5jmwh', 'uT0V26MYB7AeZOyzIrqChmtI3LmhgqXo', '875XOAjMorDKmYxHDzHfV9Bc4oTCindT', 'mkSJ1Q0DPPNmwQ6fUYZjKQcbfd1X711z');
 
     dump($datas);
 
