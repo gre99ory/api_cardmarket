@@ -81,6 +81,10 @@
                 if ( wp_next_scheduled( 'mkm_api_cron_' . $key, array( array( 'key' => $key ) ) ) ) {
                     wp_clear_scheduled_hook( 'mkm_api_cron_' . $key, array( array( 'key' => $key ) ) );
                 }
+
+                if ( wp_next_scheduled( 'mkm_api_cron_check_' . $key, array( array( 'key' => $key ) ) ) ) {
+                    wp_clear_scheduled_hook( 'mkm_api_cron_check_' . $key, array( array( 'key' => $key ) ) );
+                }
             }
         }
     }
@@ -95,6 +99,12 @@
             foreach( $options as $key => $value ) {
                 if ( !wp_next_scheduled( 'mkm_api_cron_' . $key, array( array( 'key' => $key ) ) ) ) {
                     wp_schedule_event( time(), $value['cron'], 'mkm_api_cron_' . $key, array( array( 'key' => $key ) ) );
+                }
+                
+                if ( (bool)$value['checks']['account'] || (bool)$value['checks']['articles'] ) {
+                    if ( !wp_next_scheduled( 'mkm_api_cron_check_' . $key, array( array( 'key' => $key ) ) ) ) {
+                        wp_schedule_event( time(), 'daily', 'mkm_api_cron_check_' . $key, array( array( 'key' => $key ) ) );
+                    }
                 }
             }
         } else {
@@ -182,12 +192,12 @@
             `appname` VARCHAR(50) NOT NULL,
             `language_name` VARCHAR(50) NOT NULL,
             `price` VARCHAR(50) NOT NULL,
-            `count` VARCHAR(50) NOT NULL,
+            `counts` VARCHAR(50) NOT NULL,
             `en_name` VARCHAR(50) NOT NULL,
             `loc_name` VARCHAR(50) NOT NULL,
-            `image` VARCHAR(255) NOT NULL,
+            `a_image` VARCHAR(255) NOT NULL,
             `rarity` VARCHAR(255) NOT NULL,
-            `condition` VARCHAR(50) NOT NULL,
+            `a_condition` VARCHAR(50) NOT NULL,
             `last_edited` DATETIME,
             PRIMARY KEY (`id`)) CHARSET=utf8;";
 
@@ -236,6 +246,8 @@
     function mkm_api_delete_app_orders( $app ) {
         global $wpdb;
         $wpdb->delete( 'mkm_api_orders', array( 'appname' => $app ), array( '%s' ) );
+        $wpdb->delete( 'mkm_api_articles', array( 'appname' => $app ), array( '%s' ) );
+        $wpdb->delete( 'mkm_api_accounts', array( 'appname' => $app ), array( '%s' ) );
     }
 
     /**
@@ -261,8 +273,15 @@
         $up = update_option( 'mkm_api_options', $arr );
 
         if ( $up ) {
+            if ( wp_next_scheduled( 'mkm_api_cron_' . $post['data'], array( array( 'key' => $post['data'] ) ) ) ) {
+                wp_clear_scheduled_hook( 'mkm_api_cron_' . $post['data'], array( array( 'key' => $post['data'] ) ) );
+            }
+            
+            if ( wp_next_scheduled( 'mkm_api_cron_check_' . $post['data'], array( array( 'key' => $post['data'] ) ) ) ) {
+                wp_clear_scheduled_hook( 'mkm_api_cron_check_' . $post['data'], array( array( 'key' => $post['data'] ) ) );
+            }
+
             mkm_api_delete_app_orders( $appname );
-            wp_clear_scheduled_hook( 'mkm_api_cron_' . $post['data'], array( array( 'key' => $post['data'] ) ) );
             echo 1;
             wp_die();
         };
@@ -332,7 +351,20 @@
         $option = get_option( 'mkm_api_options' );
 
         if( !(bool)$key || !(bool)$check || !in_array( $check, $checks ) || !array_key_exists( $key, $option ) ) wp_die( 'error' );
+
         $option[$key]['checks'][$check] = !$option[$key]['checks'][$check];
+
+        if ( (bool)$option[$key]['checks']['account'] || (bool)$option[$key]['checks']['articles'] ) {
+            if ( !wp_next_scheduled( 'mkm_api_cron_check_' . $key, array( array( 'key' => $key ) ) ) ) {
+                wp_schedule_event( time(), 'daily', 'mkm_api_cron_check_' . $key, array( array( 'key' => $key ) ) );
+            }
+        }
+
+        if ( !(bool)$option[$key]['checks']['account'] && !(bool)$option[$key]['checks']['articles'] ) {
+            if ( wp_next_scheduled( 'mkm_api_cron_check_' . $key, array( array( 'key' => $key ) ) ) ) {
+                wp_clear_scheduled_hook( 'mkm_api_cron_check_' . $key, array( array( 'key' => $key ) ) );
+            }
+        }
 
         $up = update_option( 'mkm_api_options', $option );
 
@@ -685,7 +717,7 @@
 
 
             if ( !$wpdb->get_var( "SELECT id_article FROM mkm_api_articles WHERE id_article = $idArticle" ) ) {
-                $wpdb->query( $wpdb->prepare( "INSERT INTO mkm_api_articles (id_article, id_product, id_language, product_nr, expIcon, in_shopping_cart, is_foil, is_signed, is_altered, is_playset, appname, language_name, price, counts, en_name, loc_name, a_image, rarity, condition, 	last_edited ) VALUES ( %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s )", $idArticle, $idProduct, $idLanguage, $productNr, $expIcon, $inShoppingCart, $isFoil, $isSigned, $isAltered, $isPlayset, $appName, $languageName, $price, $count, $enName, $locName, $image, $rarity, $condition, $lastEdited ) );
+                $wpdb->query( $wpdb->prepare( "INSERT INTO mkm_api_articles (id_article, id_product, id_language, product_nr, expIcon, in_shopping_cart, is_foil, is_signed, is_altered, is_playset, appname, language_name, price, counts, en_name, loc_name, a_image, rarity, a_condition, last_edited ) VALUES ( %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s )", $idArticle, $idProduct, $idLanguage, $productNr, $expIcon, $inShoppingCart, $isFoil, $isSigned, $isAltered, $isPlayset, $appName, $languageName, $price, $count, $enName, $locName, $image, $rarity, $condition, $lastEdited ) );
             } else {
                 $wpdb->update( 'mkm_api_articles',
                     array(
@@ -707,7 +739,7 @@
                         'loc_name'         => $locName,
                         'a_image'          => $image,
                         'rarity'           => $rarity,
-                        'condition'        => $condition,
+                        'a_condition'      => $condition,
                         'last_edited'      => $lastEdited,
                     ),
                     array( 'id_article' => $idArticle ),
@@ -1216,9 +1248,9 @@
     }
 
     // $datas = mkm_api_auth( "https://api.cardmarket.com/ws/v2.0/account", 'HBi1qvutoSU5jmwh', 'uT0V26MYB7AeZOyzIrqChmtI3LmhgqXo', '875XOAjMorDKmYxHDzHfV9Bc4oTCindT', 'mkSJ1Q0DPPNmwQ6fUYZjKQcbfd1X711z');
-    $datas = mkm_api_auth( "https://api.cardmarket.com/ws/v2.0/stock/20001", 'HBi1qvutoSU5jmwh', 'uT0V26MYB7AeZOyzIrqChmtI3LmhgqXo', '875XOAjMorDKmYxHDzHfV9Bc4oTCindT', 'mkSJ1Q0DPPNmwQ6fUYZjKQcbfd1X711z');
-
-    dump($datas);
+    // $datas = mkm_api_auth( "https://api.cardmarket.com/ws/v2.0/stock/20001", 'HBi1qvutoSU5jmwh', 'uT0V26MYB7AeZOyzIrqChmtI3LmhgqXo', '875XOAjMorDKmYxHDzHfV9Bc4oTCindT', 'mkSJ1Q0DPPNmwQ6fUYZjKQcbfd1X711z');
+    // mkm_api_add_articles_from_db( $datas, 'HBi1qvutoSU5jmwh');
+    // dump($datas);
 
 
 
