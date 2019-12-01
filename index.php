@@ -1210,6 +1210,7 @@
 
         foreach ( $options as $options_key => $options_val ) {
             add_action( 'mkm_api_cron_' . $options_key, 'mkm_cron_setup' );
+            add_action( 'mkm_api_cron_check_' . $options_key, 'mkm_cron_setup_check' );
         }
     }
 
@@ -1228,21 +1229,56 @@
         $state   = 0;
         $api     = array( 1, 2, 4, 8 );
 
-        while ( $flag ) {
-            $data    = mkm_api_auth( $mkmApiBaseUrl . $api[$state] . "/" . $count, $options[$key]['app_token'], $options[$key]['app_secret'], $options[$key]['access_token'], $options[$key]['token_secret'] );
-            if ( isset ( $data->order[0]->idOrder ) &&  $data->order[0]->idOrder != 0 ) {
-                sleep( 1 );
-                mkm_api_add_data_from_db( $data, $key );
-                $count = $count + 100;
-                if ( $count >= 501 ) $flag = false;
-            } else {
-                if ( $state >= 4 ) {
-                    $flag = false;
+        if ( (bool)$options[$key]['checks']['orders'] ) {
+            while ( $flag ) {
+                $data    = mkm_api_auth( $mkmApiBaseUrl . $api[$state] . "/" . $count, $options[$key]['app_token'], $options[$key]['app_secret'], $options[$key]['access_token'], $options[$key]['token_secret'] );
+                if ( isset ( $data->order[0]->idOrder ) &&  $data->order[0]->idOrder != 0 ) {
+                    sleep( 1 );
+                    mkm_api_add_data_from_db( $data, $key );
+                    $count = $count + 100;
+                    if ( $count >= 501 ) $flag = false;
                 } else {
-                    $count = 1;
-                    $state++;
+                    if ( $state >= 4 ) {
+                        $flag = false;
+                    } else {
+                        $count = 1;
+                        $state++;
+                    }
                 }
             }
+        }
+    }
+
+    /**
+     * @param array
+     * @return void
+     * Performing Cron Tasks for article and accounts
+     */
+    function mkm_cron_setup_check( $args ) {
+
+        global $mkmApiBaseUrl;
+        $options = get_option( 'mkm_api_options' );
+        $key     = $args['key'];
+        $flag    = true;
+        $count   = 1;
+
+        if ( (bool)$options[$key]['checks']['articles'] ) {
+            while ( $flag ) {
+                $data    = mkm_api_auth( 'https://api.cardmarket.com/ws/v2.0/stock/' . $count, $options[$key]['app_token'], $options[$key]['app_secret'], $options[$key]['access_token'], $options[$key]['token_secret'] );
+                if ( isset ( $data->article[0]->idArticle ) &&  $data->article[0]->idArticle != 0 ) {
+                    sleep( 1 );
+                    mkm_api_add_articles_from_db( $data, $key );
+                    $count += 100;
+                } else {
+                    $flag  = false;
+                    $count = 1;
+                }
+            }
+        }
+
+        if ( (bool)$options[$key]['checks']['account'] ) {
+            $data = mkm_api_auth( "https://api.cardmarket.com/ws/v2.0/account", $options[$key]['app_token'], $options[$key]['app_secret'], $options[$key]['access_token'], $options[$key]['token_secret'] );
+            mkm_api_add_account_from_db( $data, $key );
         }
 
     }
