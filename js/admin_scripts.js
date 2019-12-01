@@ -212,8 +212,8 @@ jQuery(document).ready(function($){
                 $('.mkm-api-update-orders').attr('disabled',true).find('.mkm-api-update-orders-span').addClass('rotates');
             },
             success: function(result){
+                console.log(result);
                 if(result != 'done'){
-                    console.log(result);
                     res = JSON.parse(result);
                     mkmApiAjaxUpdateOrders(res.key, res.state, res.count);
                 } else {

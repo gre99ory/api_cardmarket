@@ -233,7 +233,71 @@
     }
 }
 
+.mkm-api-account-item {
+    background: #fff;
+    padding: 15px;
+    border: 1px solid #e9e9e9;
+    border-radius: 5px;
+    margin-bottom: 5px;
+}
+
+.mkm-api-account-item {
+    margin-bottom: 20px;
+}
+
+.mkm-api-row {
+    margin-left: -15px;
+    margin-right: -15px;
+    display: flex;
+    width: 100%;
+}
+
+.mkm-api-colum-3, .mkm-api-colum-4, .mkm-api-colum-2, .mkm-api-colum-10 {
+    padding-left: 15px;
+    padding-right: 15px;
+}
+
+.mkm-api-colum-3 {
+    width: 25%;
+}
+
+.mkm-api-colum-4 {
+    width: 33.333333%;
+}
+
+.mkm-api-colum-2 {
+    width: 16.66666%;
+}
+
+.mkm-api-colum-10 {
+    width: 83.33333%;
+}
+
+.mkm-api-account-item-str {
+    margin-bottom: 10px;
+}
+
+.mkm-api-account-item-str small {
+    color: #c4c4c4;
+}
+
+.mkm-api-card-icon {
+    width: 21px;
+    height: 21px;
+    display: inline-block;
+    background: url('../img/icons.png')no-repeat;
+}
+
 @media ( max-width: 782px) {
+
+    .mkm-api-row {
+        flex-direction: column;
+    }
+
+    .mkm-api-colum-3, .mkm-api-colum-4, .mkm-api-colum-2, .mkm-api-colum-10 {
+        width: 100%;
+    }
+
     .mkm-api-app-td {
         width: 100%;
     }
