@@ -21,5 +21,6 @@ The MKM API plugin for WordPress is designed to receive information about seller
 
 
 # Latest Versions
+* **1.1.1** - Added get data API accounts and articles
 * **1.0.6** - Added README.md file and comments for functions
 * **1.0.5** - Correction of errors receiving data on the cron

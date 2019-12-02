@@ -6,7 +6,32 @@ jQuery(document).ready(function($){
         dateFrom: '',
         dateTo: '',
         selectApp: '',
+        moreArticles: $('#mkm-api-show-more-articles').html(),
+        moreArticlesStep: 30
     }
+
+    $(document).on('click', '#more-articles', function(){
+        $.ajax({
+            type: 'POST',
+            url: ajaxurl,
+            data: {
+                action:'mkm_api_ajax_more_articles',
+                data : AppMkm.moreArticles,
+                start: AppMkm.moreArticlesStep
+            },
+            beforeSend: function(){
+                AppMkm.moreArticles -= 30;
+                AppMkm.moreArticlesStep += 30;
+                if(AppMkm.moreArticles <= 0) $('#more-articles').hide();
+            },
+            success: function(result){
+                if ( result != 'done') {
+                    $('#mlm-api-article-wrap').append(result);
+                    $('#mkm-api-show-more-articles').html(AppMkm.moreArticles);
+                }
+            }
+        });
+    });
 
     $('#mkm-api-show-more').html($('.mkm-api-filter-count').data('count') - 30);
 

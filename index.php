@@ -30,6 +30,7 @@
     add_action( 'wp_ajax_mkm_api_ajax_get_orders', 'mkm_api_ajax_get_orders' );
     add_action( 'wp_ajax_mkm_api_checkup', 'mkm_api_ajax_checkup' );
     add_action( 'wp_ajax_mkm_api_ajax_update_orders', 'mkm_api_ajax_update_orders' );
+    add_action( 'wp_ajax_mkm_api_ajax_more_articles', 'mkm_api_ajax_more_articles' );
     add_action( 'admin_enqueue_scripts', 'mkm_api_enqueue_admin' );
     add_action( 'admin_print_footer_scripts-toplevel_page_mkm-api-options', 'mkm_api_modal_to_footer' );
     add_filter( 'cron_schedules', 'mkm_api_add_schedules', 20 );
@@ -1059,6 +1060,108 @@
     }
 
     /**
+     * @return void
+     * Forms an output of these articles to the screen
+     */
+    function mkm_api_ajax_more_articles() {
+        $post  = $_POST;
+        $start = $post['start'];
+        if ( !isset( $post ) || $start < 30 ) wp_die();
+
+        $data  = mkm_api_get_articles( $start );
+        $html  = '';
+
+        if ( $data['count'] > 0 ) {
+            foreach ( $data['result'] as $item ) {
+                $html .= '<div class="mkm-api-account-item">';
+                $html .= '<div class="mkm-api-row">';
+                $html .= '<div class="mkm-api-colum-2">';
+                $html .= '<img src="https://cardmarket.com/' . $item->a_image . '" style="width: 100%;">';
+                $html .= '</div>';
+                $html .= '<div class="mkm-api-colum-10">';
+                $html .= '<div class="mkm-api-row">';
+                $html .= '<div class="mkm-api-colum-4">';
+                $html .= '<div class="mkm-api-account-item-str">';
+                $html .= '<div>' . $item->en_name . ' (#' . $item->id_article . ')' . '</div>';
+                $html .= '<small>' . __( 'Name, ID Article', 'mkm-api' ) . '</small>';
+                $html .= '</div>';
+                $html .= '<div class="mkm-api-account-item-str">';
+                $html .= '<div><?php echo $item->id_product; ?></div>';
+                $html .= '<small>' . __( 'ID Product', 'mkm-api' ) . '</small>';
+                $html .= '</div>';
+                $html .= '<div class="mkm-api-account-item-str">';
+                $html .= '<div>' . $item->language_name .'</div>';
+                $html .= '<small>' . __( 'Language', 'mkm-api' ) .'</small>';
+                $html .= '</div>';
+                $html .= '<div class="mkm-api-account-item-str">';
+                $html .= '<div>' . number_format( $item->price, 2, '.', ' ' ) . '</div>';
+                $html .= '<small>' . __( 'Price', 'mkm-api' ) . '</small>';
+                $html .= '</div>';
+                $html .= '<div class="mkm-api-account-item-str">';
+                $html .= '<div><span class="mkm-api-card-icon" style="background-position: -' . ( $item->expIcon%10 ) * 21 . 'px -' . floor( $item->expIcon / 10 ) * 21 .'px;"></span></div>';
+                $html .= '<small>' . __( 'Icon', 'mkm-api' ) . '</small>';
+                $html .= '</div>';
+                $html .= '</div>';
+                $html .= '<div class="mkm-api-colum-4">';
+                $html .= '<div class="mkm-api-account-item-str">';
+                $html .= '<div>' . $item->appname . '</div>';
+                $html .= '<small>' . __( "App Name", 'mkm-api' ) . '</small>';
+                $html .= '</div>';
+                $html .= '<div class="mkm-api-account-item-str">';
+                $html .= '<div>' . $item->rarity . '</div>';
+                $html .= '<small>' . __( "Product's rarity", 'mkm-api' ) . '</small>';
+                $html .= '</div>';
+                $html .= '<div class="mkm-api-account-item-str">';
+                $html .= '<div>' . $item->a_condition . '</div>';
+                $html .= '<small>' . __( "Product's condition", 'mkm-api' ) . '</small>';
+                $html .= '</div>';
+                $html .= '<div class="mkm-api-account-item-str">';
+                $html .= '<div>' . $item->last_edited . '</div>';
+                $html .= '<small>' . __( "Last edited", 'mkm-api' ) . '</small>';
+                $html .= '</div>';
+                $html .= '<div class="mkm-api-account-item-str">';
+                $html .= '<div>' . $item->counts . '</div>';
+                $html .= '<small>' . __( 'Number of single within the expansion', 'mkm-api' ) . '</small>';
+                $html .= '</div>';
+                $html .= '</div>';
+                $html .= '<div class="mkm-api-colum-4">';
+                $html .= '<div class="mkm-api-account-item-str">';
+                $html .= '<div>' . (bool)$item->in_shopping_cart ? 'Yes' : 'No' . '</div>';
+                $html .= '<small>' . __( "Product in basket", 'mkm-api' ) . '</small>';
+                $html .= '</div>';
+                $html .= '<div class="mkm-api-account-item-str">';
+                $html .= '<div>' . (bool)$item->is_foil ? 'Yes' : 'No' . '</div>';
+                $html .= '<small>' . __( "Foil", 'mkm-api' ) . '</small>';
+                $html .= '</div>';
+                $html .= '<div class="mkm-api-account-item-str">';
+                $html .= '<div>' . (bool)$item->is_signed ? 'Yes' : 'No' . '</div>';
+                $html .= '<small>' . __( "Signed", 'mkm-api' ) . '</small>';
+                $html .= '</div>';
+                $html .= '<div class="mkm-api-account-item-str">';
+                $html .= '<div>' . (bool)$item->is_altered ? 'Yes' : 'No' . '</div>';
+                $html .= '<small>' . __( "Altered", 'mkm-api' ) . '</small>';
+                $html .= '</div>';
+                $html .= '<div class="mkm-api-account-item-str">';
+                $html .= '<div>' . (bool)$item->is_playset ? 'Yes' : 'No' . '</div>';
+                $html .= '<small>' . __( "Playset", 'mkm-api' ) . '</small>';
+                $html .= '</div>';
+                $html .= '</div>';
+                $html .= '</div>';
+                $html .= '</div>';
+                $html .= '</div>';
+                $html .= '</div>';
+
+            }
+            echo $html; die;
+        } else {
+            echo 'done'; die;
+        }
+
+        echo 'done';
+        die;
+    }
+
+    /**
      * @param int
      * @param string
      * @param string
@@ -1340,85 +1443,88 @@
             <div class="wrap mkm-api-wrap">
                 <h2 style="margin-bottom: 20px;"><?php _e( 'MKM API Articles', 'mkm-api' ); ?></h2>
                 <?php if ( $data['count'] > 0 ) { ?>
-                <?php foreach ( $data['result'] as $item ) { ?>
-                <div class="mkm-api-account-item">
-                    <div class="mkm-api-row">
-                        <div class="mkm-api-colum-2">
-                            <img src="https://cardmarket.com/<?php echo $item->a_image ?>" style="width: 100%;">
-                        </div>
-                        <div class="mkm-api-colum-10">
+                    <div id="mlm-api-article-wrap">
+                        <?php foreach ( $data['result'] as $item ) { ?>
+                        <div class="mkm-api-account-item">
                             <div class="mkm-api-row">
-                                <div class="mkm-api-colum-4">
-                                    <div class="mkm-api-account-item-str">
-                                        <div><?php echo $item->en_name . ' (#' . $item->id_article . ')'; ?></div>
-                                        <small><?php _e( 'Name, ID Article', 'mkm-api' ); ?></small>
-                                    </div>
-                                    <div class="mkm-api-account-item-str">
-                                        <div><?php echo $item->id_product; ?></div>
-                                        <small><?php _e( 'ID Product', 'mkm-api' ); ?></small>
-                                    </div>
-                                    <div class="mkm-api-account-item-str">
-                                        <div><?php echo $item->language_name; ?></div>
-                                        <small><?php _e( 'Language', 'mkm-api' ); ?></small>
-                                    </div>
-                                    <div class="mkm-api-account-item-str">
-                                        <div><?php echo number_format( $item->price, 2, '.', ' ' ); ?></div>
-                                        <small><?php _e( 'Price', 'mkm-api' ); ?></small>
-                                    </div>
-                                    <div class="mkm-api-account-item-str">
-                                        <div><span class="mkm-api-card-icon" style="background-position: -<?php echo ( $item->expIcon%10 ) * 21; ?>px -<?php echo floor( $item->expIcon / 10 ) * 21; ?>px;"></span></div>
-                                        <small><?php _e( 'Icon', 'mkm-api' ); ?></small>
-                                    </div>
+                                <div class="mkm-api-colum-2">
+                                    <img src="https://cardmarket.com/<?php echo $item->a_image ?>" style="width: 100%;">
                                 </div>
-                                <div class="mkm-api-colum-4">
-                                    <div class="mkm-api-account-item-str">
-                                        <div><?php echo $item->appname; ?></div>
-                                        <small><?php _e( "App Name", 'mkm-api' ); ?></small>
-                                    </div>
-                                    <div class="mkm-api-account-item-str">
-                                        <div><?php echo $item->rarity; ?></div>
-                                        <small><?php _e( "Product's rarity", 'mkm-api' ); ?></small>
-                                    </div>
-                                    <div class="mkm-api-account-item-str">
-                                        <div><?php echo $item->a_condition; ?></div>
-                                        <small><?php _e( "Product's condition", 'mkm-api' ); ?></small>
-                                    </div>
-                                    <div class="mkm-api-account-item-str">
-                                        <div><?php echo $item->last_edited; ?></div>
-                                        <small><?php _e( "Last edited", 'mkm-api' ); ?></small>
-                                    </div>
-                                    <div class="mkm-api-account-item-str">
-                                        <div><?php echo $item->counts; ?></div>
-                                        <small><?php _e( 'Number of single within the expansion', 'mkm-api' ); ?></small>
-                                    </div>
-                                </div>
-                                <div class="mkm-api-colum-4">
-                                    <div class="mkm-api-account-item-str">
-                                        <div><?php echo (bool)$item->in_shopping_cart ? 'Yes' : 'No'; ?></div>
-                                        <small><?php _e( "Product in basket", 'mkm-api' ); ?></small>
-                                    </div>
-                                    <div class="mkm-api-account-item-str">
-                                        <div><?php echo (bool)$item->is_foil ? 'Yes' : 'No'; ?></div>
-                                        <small><?php _e( "Foil", 'mkm-api' ); ?></small>
-                                    </div>
-                                    <div class="mkm-api-account-item-str">
-                                        <div><?php echo (bool)$item->is_signed ? 'Yes' : 'No'; ?></div>
-                                        <small><?php _e( "Signed", 'mkm-api' ); ?></small>
-                                    </div>
-                                    <div class="mkm-api-account-item-str">
-                                        <div><?php echo (bool)$item->is_altered ? 'Yes' : 'No'; ?></div>
-                                        <small><?php _e( "Altered", 'mkm-api' ); ?></small>
-                                    </div>
-                                    <div class="mkm-api-account-item-str">
-                                        <div><?php echo (bool)$item->is_playset ? 'Yes' : 'No'; ?></div>
-                                        <small><?php _e( "Playset", 'mkm-api' ); ?></small>
+                                <div class="mkm-api-colum-10">
+                                    <div class="mkm-api-row">
+                                        <div class="mkm-api-colum-4">
+                                            <div class="mkm-api-account-item-str">
+                                                <div><?php echo $item->en_name . ' (#' . $item->id_article . ')'; ?></div>
+                                                <small><?php _e( 'Name, ID Article', 'mkm-api' ); ?></small>
+                                            </div>
+                                            <div class="mkm-api-account-item-str">
+                                                <div><?php echo $item->id_product; ?></div>
+                                                <small><?php _e( 'ID Product', 'mkm-api' ); ?></small>
+                                            </div>
+                                            <div class="mkm-api-account-item-str">
+                                                <div><?php echo $item->language_name; ?></div>
+                                                <small><?php _e( 'Language', 'mkm-api' ); ?></small>
+                                            </div>
+                                            <div class="mkm-api-account-item-str">
+                                                <div><?php echo number_format( $item->price, 2, '.', ' ' ); ?></div>
+                                                <small><?php _e( 'Price', 'mkm-api' ); ?></small>
+                                            </div>
+                                            <div class="mkm-api-account-item-str">
+                                                <div><span class="mkm-api-card-icon" style="background-position: -<?php echo ( $item->expIcon%10 ) * 21; ?>px -<?php echo floor( $item->expIcon / 10 ) * 21; ?>px;"></span></div>
+                                                <small><?php _e( 'Icon', 'mkm-api' ); ?></small>
+                                            </div>
+                                        </div>
+                                        <div class="mkm-api-colum-4">
+                                            <div class="mkm-api-account-item-str">
+                                                <div><?php echo $item->appname; ?></div>
+                                                <small><?php _e( "App Name", 'mkm-api' ); ?></small>
+                                            </div>
+                                            <div class="mkm-api-account-item-str">
+                                                <div><?php echo $item->rarity; ?></div>
+                                                <small><?php _e( "Product's rarity", 'mkm-api' ); ?></small>
+                                            </div>
+                                            <div class="mkm-api-account-item-str">
+                                                <div><?php echo $item->a_condition; ?></div>
+                                                <small><?php _e( "Product's condition", 'mkm-api' ); ?></small>
+                                            </div>
+                                            <div class="mkm-api-account-item-str">
+                                                <div><?php echo $item->last_edited; ?></div>
+                                                <small><?php _e( "Last edited", 'mkm-api' ); ?></small>
+                                            </div>
+                                            <div class="mkm-api-account-item-str">
+                                                <div><?php echo $item->counts; ?></div>
+                                                <small><?php _e( 'Number of single within the expansion', 'mkm-api' ); ?></small>
+                                            </div>
+                                        </div>
+                                        <div class="mkm-api-colum-4">
+                                            <div class="mkm-api-account-item-str">
+                                                <div><?php echo (bool)$item->in_shopping_cart ? 'Yes' : 'No'; ?></div>
+                                                <small><?php _e( "Product in basket", 'mkm-api' ); ?></small>
+                                            </div>
+                                            <div class="mkm-api-account-item-str">
+                                                <div><?php echo (bool)$item->is_foil ? 'Yes' : 'No'; ?></div>
+                                                <small><?php _e( "Foil", 'mkm-api' ); ?></small>
+                                            </div>
+                                            <div class="mkm-api-account-item-str">
+                                                <div><?php echo (bool)$item->is_signed ? 'Yes' : 'No'; ?></div>
+                                                <small><?php _e( "Signed", 'mkm-api' ); ?></small>
+                                            </div>
+                                            <div class="mkm-api-account-item-str">
+                                                <div><?php echo (bool)$item->is_altered ? 'Yes' : 'No'; ?></div>
+                                                <small><?php _e( "Altered", 'mkm-api' ); ?></small>
+                                            </div>
+                                            <div class="mkm-api-account-item-str">
+                                                <div><?php echo (bool)$item->is_playset ? 'Yes' : 'No'; ?></div>
+                                                <small><?php _e( "Playset", 'mkm-api' ); ?></small>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
+                        <?php } } ?>
                     </div>
-                </div>
-                <?php } } ?>
+                <button class="button button-primary" id="more-articles" data-start="30">Show more <span id="mkm-api-show-more-articles"><?php echo $data['count'] - 30; ?></span></button>
             </div>
         <?php
     }
@@ -1552,14 +1658,3 @@
         }
 
     }
-
-    // $datas = mkm_api_auth( "https://api.cardmarket.com/ws/v2.0/account", 'HBi1qvutoSU5jmwh', 'uT0V26MYB7AeZOyzIrqChmtI3LmhgqXo', '875XOAjMorDKmYxHDzHfV9Bc4oTCindT', 'mkSJ1Q0DPPNmwQ6fUYZjKQcbfd1X711z');
-    // $datas = mkm_api_auth( "https://api.cardmarket.com/ws/v2.0/stock/20001", 'HBi1qvutoSU5jmwh', 'uT0V26MYB7AeZOyzIrqChmtI3LmhgqXo', '875XOAjMorDKmYxHDzHfV9Bc4oTCindT', 'mkSJ1Q0DPPNmwQ6fUYZjKQcbfd1X711z');
-    // mkm_api_add_articles_from_db( $datas, 'HBi1qvutoSU5jmwh');
-    // dump($datas);
-
-
-
-
-
-
