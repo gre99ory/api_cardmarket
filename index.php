@@ -1060,6 +1060,14 @@
     }
 
     /**
+     * @return bool|string
+     * Function helper for output yes or no
+     */
+    function mkm_api_yes_no( $flag ) {
+        return (bool)$flag ? __( 'Yes', 'mkm-api' ) : __( 'No', 'mkm-api' );
+    }
+
+    /**
      * @return void
      * Forms an output of these articles to the screen
      */
@@ -1086,7 +1094,7 @@
                 $html .= '<small>' . __( 'Name, ID Article', 'mkm-api' ) . '</small>';
                 $html .= '</div>';
                 $html .= '<div class="mkm-api-account-item-str">';
-                $html .= '<div><?php echo $item->id_product; ?></div>';
+                $html .= '<div>' . $item->id_product . '</div>';
                 $html .= '<small>' . __( 'ID Product', 'mkm-api' ) . '</small>';
                 $html .= '</div>';
                 $html .= '<div class="mkm-api-account-item-str">';
@@ -1126,23 +1134,23 @@
                 $html .= '</div>';
                 $html .= '<div class="mkm-api-colum-4">';
                 $html .= '<div class="mkm-api-account-item-str">';
-                $html .= '<div>' . (bool)$item->in_shopping_cart ? 'Yes' : 'No' . '</div>';
+                $html .= '<div>' . mkm_api_yes_no( $item->in_shopping_cart ) . '</div>';
                 $html .= '<small>' . __( "Product in basket", 'mkm-api' ) . '</small>';
                 $html .= '</div>';
                 $html .= '<div class="mkm-api-account-item-str">';
-                $html .= '<div>' . (bool)$item->is_foil ? 'Yes' : 'No' . '</div>';
+                $html .= '<div>' . mkm_api_yes_no( $item->is_foil ) . '</div>';
                 $html .= '<small>' . __( "Foil", 'mkm-api' ) . '</small>';
                 $html .= '</div>';
                 $html .= '<div class="mkm-api-account-item-str">';
-                $html .= '<div>' . (bool)$item->is_signed ? 'Yes' : 'No' . '</div>';
+                $html .= '<div>' . mkm_api_yes_no( $item->is_signed ) . '</div>';
                 $html .= '<small>' . __( "Signed", 'mkm-api' ) . '</small>';
                 $html .= '</div>';
                 $html .= '<div class="mkm-api-account-item-str">';
-                $html .= '<div>' . (bool)$item->is_altered ? 'Yes' : 'No' . '</div>';
+                $html .= '<div>' . mkm_api_yes_no( $item->is_altered ) . '</div>';
                 $html .= '<small>' . __( "Altered", 'mkm-api' ) . '</small>';
                 $html .= '</div>';
                 $html .= '<div class="mkm-api-account-item-str">';
-                $html .= '<div>' . (bool)$item->is_playset ? 'Yes' : 'No' . '</div>';
+                $html .= '<div>' . mkm_api_yes_no( $item->is_playset ) . '</div>';
                 $html .= '<small>' . __( "Playset", 'mkm-api' ) . '</small>';
                 $html .= '</div>';
                 $html .= '</div>';
