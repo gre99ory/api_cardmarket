@@ -61,12 +61,6 @@
 		}
     }
 
-    add_action('init', function(){
-        if(!is_admin()) {
-            dump(get_option('cron'));
-        }
-    });
-
     /**
      * @return string
      * Replacing an empty date value for display
